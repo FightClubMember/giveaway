@@ -1,28 +1,20 @@
-databases:
-  - name: giveaway-postgres
-    databaseName: giveaways
-    user: postgres
-    plan: free # or standard
-
 services:
   - type: web
     name: giveaway-bot
     runtime: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python bot.py"
-    plan: free # Can also be run on paid background worker
+    plan: free # Runs on Render free tier with automatic /health check
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: giveaway-postgres
-          property: connectionString
+        sync: false # Set to your Supabase PostgreSQL connection string
       - key: BOT_TOKEN
-        sync: false
+        sync: false # Your Bot Token from @BotFather
       - key: BOT_USERNAME
-        sync: false
+        sync: false # Your Bot Username without @
       - key: ADMIN_IDS
-        sync: false
+        sync: false # Your Telegram User ID
       - key: LOG_LEVEL
         value: INFO
       - key: CLAIM_WINDOW_HOURS
