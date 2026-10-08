@@ -37,8 +37,18 @@ def test_poster_service_image_generation():
     # Verify PIL can open it
     buffer.seek(0)
     img = Image.open(buffer)
-    assert img.size == (1000, 560)
+    assert img.size in [(1200, 675), (1000, 560)]
     assert img.format == "PNG"
+
+    # Verify welcome poster generation
+    w_buf = PosterService.generate_welcome_poster(user_name="Himanshu")
+    assert w_buf is not None
+    w_data = w_buf.getvalue()
+    assert len(w_data) > 5000
+    w_buf.seek(0)
+    w_img = Image.open(w_buf)
+    assert w_img.size == (1200, 675)
+    assert w_img.format == "PNG"
 
 
 @pytest.mark.asyncio

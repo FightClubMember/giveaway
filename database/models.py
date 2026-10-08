@@ -266,3 +266,16 @@ class PromoCodeRedemption(Base):
     __table_args__ = (
         UniqueConstraint("code_id", "user_id", name="uq_code_user_redemption"),
     )
+
+
+class ConnectedChat(Base):
+    __tablename__ = "connected_chats"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    chat_type = Column(String(32), default="supergroup", nullable=False)  # "group", "supergroup", "channel"
+    username = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    auto_post_giveaways = Column(Boolean, default=True, nullable=False)
+    added_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)

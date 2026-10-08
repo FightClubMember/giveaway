@@ -226,3 +226,86 @@ class GiveawayService:
             "giveaways_joined": len(participated_ids),
             "referral_link": referral_summary["referral_link"],
         }
+
+    @classmethod
+    async def broadcast_giveaway_to_connected_groups(
+        cls,
+        bot: Bot,
+        session: AsyncSession,
+        giveaway_id: int,
+    ) -> int:
+        """Automatically send the HD poster and announcement to all connected Telegram groups/channels."""
+        from database.repositories import ConnectedChatRepository
+        from services.poster_service import PosterService
+        from utils.formatting import format_time_remaining
+        from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
+
+        gw_repo = GiveawayRepository(session)
+        chat_repo = ConnectedChatRepository(session)
+
+        gw = await gw_repo.get_by_id(giveaway_id)
+        if not gw:
+            return 0
+
+        chats = await chat_repo.get_all_active_auto_post()
+        if not chats:
+            return 0
+
+        bot_info = await bot.get_me()
+        bot_username = bot_info.username
+
+        # Generate HD promotional poster
+        time_left = format_time_remaining(gw.end_time)
+        poster_io = PosterService.generate_giveaway_poster(
+            title=gw.title,
+            prize=gw.prize,
+            winners_count=gw.winners_count,
+            time_left=time_left,
+        )
+        poster_bytes = poster_io.getvalue()
+
+        caption = (
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎁 <b>NEW OFFICIAL GIVEAWAY DROP! 🔥</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👑 <b>Title:</b> {gw.title}\n"
+            f"💰 <b>Prize:</b> <b>{gw.prize}</b>\n"
+            f"🏆 <b>Winners:</b> {gw.winners_count}\n"
+            f"⏳ <b>Ends In:</b> {time_left}\n\n"
+            "🎟 <b>Kaise Participate Karein?</b>\n"
+            "Neeche <b>'🎁 JOIN GIVEAWAY'</b> button dabao aur direct bot me enter karo!\n"
+            "Dosto ko refer karke apni jeetne ki chance 10x badhao!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="🎁 JOIN GIVEAWAY NOW (1-Click)",
+                    url=f"https://t.me/{bot_username}?start=gw_{gw.id}",
+                    style="success",
+                )
+            ]]
+        )
+
+        sent_count = 0
+        for chat in chats:
+            try:
+                photo_file = BufferedInputFile(poster_bytes, filename=f"giveaway_{gw.id}.png")
+                msg = await bot.send_photo(
+                    chat_id=chat.chat_id,
+                    photo=photo_file,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+                sent_count += 1
+                try:
+                    await bot.pin_chat_message(chat_id=chat.chat_id, message_id=msg.message_id)
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.warning("Failed to auto-post giveaway to group %d (%s): %s", chat.chat_id, chat.title, e)
+                if "kicked" in str(e).lower() or "blocked" in str(e).lower() or "chat not found" in str(e).lower():
+                    await chat_repo.deactivate(chat.chat_id)
+
+        return sent_count

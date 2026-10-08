@@ -20,10 +20,13 @@ def main_reply_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
         ],
         [
             KeyboardButton(text="🔥 Daily Free Ticket", style="success"),
-            KeyboardButton(text="🤖 John Bhai Ka AI", style="primary"),
+            KeyboardButton(text="🎟 Redeem Code", style="primary"),
         ],
         [
+            KeyboardButton(text="🤖 John Bhai Ka AI", style="primary"),
             KeyboardButton(text="👤 Meri Profile", style="primary"),
+        ],
+        [
             KeyboardButton(text="ℹ️ Kaise Kaam Karta Hai?", style="primary"),
         ],
     ]

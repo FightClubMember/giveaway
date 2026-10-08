@@ -31,6 +31,7 @@ from services.notification_service import NotificationService
 from services.ai_service import GroqAIService
 from services.poster_service import PosterService
 from services.promo_service import PromoService
+from services.giveaway_service import GiveawayService
 from keyboards.admin import (
     admin_menu_keyboard,
     admin_giveaway_manage_keyboard,
@@ -439,6 +440,19 @@ async def finish_create_giveaway(message: Message, state: FSMContext) -> None:
             details=f"Created giveaway #{giveaway.id}: {giveaway.title}",
         )
 
+        # Auto-post to connected groups
+        try:
+            auto_posted_groups = await GiveawayService.broadcast_giveaway_to_connected_groups(
+                bot=message.bot,
+                session=session,
+                giveaway_id=giveaway.id,
+            )
+        except Exception as e:
+            logger.warning("Could not auto-post giveaway to groups: %s", e)
+            auto_posted_groups = 0
+
+    group_notice = f"\n📢 <b>Auto-Posted:</b> Successfully sent to {auto_posted_groups} connected group(s) with HD Poster!\n" if auto_posted_groups > 0 else ""
+
     quick_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -460,7 +474,8 @@ async def finish_create_giveaway(message: Message, state: FSMContext) -> None:
         f"🎁 <b>Title:</b> {giveaway.title}\n"
         f"💰 <b>Prize:</b> {giveaway.prize}\n"
         f"🏆 <b>Winners:</b> {giveaway.winners_count}\n"
-        f"⏳ <b>Ends In:</b> {format_time_remaining(giveaway.end_time)}\n\n"
+        f"⏳ <b>Ends In:</b> {format_time_remaining(giveaway.end_time)}\n"
+        f"{group_notice}\n"
         "💡 <b>Tip:</b> Agar iska koi instant redeem code ya specific claim question set karna hai, to neeche button se turant set kar sakte ho!",
         parse_mode="HTML",
         reply_markup=quick_kb,
@@ -1006,7 +1021,14 @@ async def handle_announce_giveaway(callback: CallbackQuery, bot: Bot) -> None:
             reply_markup=markup,
         )
 
-    await callback.answer(f"Announced! Sent to {b_result.sent} users.", show_alert=True)
+        # Also push HD poster to all connected groups
+        groups_sent = await GiveawayService.broadcast_giveaway_to_connected_groups(
+            bot=bot,
+            session=session,
+            giveaway_id=gw.id,
+        )
+
+    await callback.answer(f"Announced! Sent to {b_result.sent} users and {groups_sent} groups.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("adm_delete_"))

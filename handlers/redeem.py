@@ -57,6 +57,18 @@ async def start_redeem_code_flow(callback: CallbackQuery, state: FSMContext) -> 
     await callback.answer()
 
 
+@router.message(F.text.in_(["🎟 Redeem Code", "🎟 Redeem Promo", "🎟 Secret Code Redeem"]))
+async def start_redeem_code_from_reply(message: Message, state: FSMContext) -> None:
+    """Prompt for secret promo code via native reply button."""
+    await state.set_state(RedeemStates.waiting_for_code)
+    await message.reply(
+        "🎟 <b>REDEEM SECRET PROMO CODE</b>\n\n"
+        "Bhai koi special voucher ya promo code mila hai? (e.g. <code>JOHNBONUS5</code>)\n\n"
+        "👉 Apna promo code yahan type karke bhej do, bonus tickets turant mil jayengi!",
+        parse_mode="HTML",
+    )
+
+
 @router.message(RedeemStates.waiting_for_code)
 async def process_redeem_code(message: Message, state: FSMContext) -> None:
     user = message.from_user

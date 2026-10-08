@@ -3,12 +3,13 @@
 import logging
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
 from config import settings
 from database.database import get_session
 from database.repositories import UserRepository
 from services.referral_service import ReferralService
+from services.poster_service import PosterService
 from keyboards.user import main_menu_keyboard, main_reply_keyboard, back_to_menu_keyboard, quick_actions_inline_keyboard
 from handlers.giveaways import handle_active_giveaways
 from handlers.referrals import handle_referrals
@@ -74,12 +75,24 @@ async def handle_start(message: Message, command: CommandObject) -> None:
             logger.info("New user %d registered via referral from %d", user.id, referrer_id)
 
     is_admin = require_admin(user.id)
-    # Send single elegant welcome card with persistent bottom reply keyboard attached
-    await message.answer(
-        text=WELCOME_TEXT,
-        parse_mode="HTML",
-        reply_markup=main_reply_keyboard(is_admin=is_admin),
-    )
+    # Send high-definition welcome poster with persistent bottom reply keyboard attached
+    try:
+        user_display_name = user.first_name or "Bhai"
+        poster_io = PosterService.generate_welcome_poster(user_name=user_display_name)
+        banner_file = BufferedInputFile(poster_io.getvalue(), filename="welcome_banner.png")
+        await message.answer_photo(
+            photo=banner_file,
+            caption=WELCOME_TEXT,
+            parse_mode="HTML",
+            reply_markup=main_reply_keyboard(is_admin=is_admin),
+        )
+    except Exception as e:
+        logger.warning("Falling back to text welcome message: %s", e)
+        await message.answer(
+            text=WELCOME_TEXT,
+            parse_mode="HTML",
+            reply_markup=main_reply_keyboard(is_admin=is_admin),
+        )
 
 
 # --- REPLY KEYBOARD ROUTERS (Both Hinglish & English Supported) ---

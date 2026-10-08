@@ -20,6 +20,7 @@ from database.models import (
     Broadcast,
     PromoCode,
     PromoCodeRedemption,
+    ConnectedChat,
     GiveawayStatus,
     EntryType,
     ClaimStatus,
@@ -711,3 +712,68 @@ class LeaderboardRepository:
         )
         res = await self.session.execute(stmt)
         return [(u, int(tsum or 0)) for u, tsum in res.all()]
+
+
+class ConnectedChatRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def register_or_update(
+        self,
+        chat_id: int,
+        title: str,
+        chat_type: str = "supergroup",
+        username: Optional[str] = None,
+        is_active: bool = True,
+        auto_post_giveaways: bool = True,
+    ) -> ConnectedChat:
+        stmt = select(ConnectedChat).where(ConnectedChat.chat_id == chat_id)
+        res = await self.session.execute(stmt)
+        chat = res.scalar_one_or_none()
+        if not chat:
+            chat = ConnectedChat(
+                chat_id=chat_id,
+                title=title,
+                chat_type=chat_type,
+                username=username,
+                is_active=is_active,
+                auto_post_giveaways=auto_post_giveaways,
+                added_at=utcnow(),
+            )
+            self.session.add(chat)
+        else:
+            chat.title = title
+            chat.chat_type = chat_type
+            chat.username = username
+            chat.is_active = is_active
+            chat.auto_post_giveaways = auto_post_giveaways
+        await self.session.flush()
+        return chat
+
+    async def get_all_active_auto_post(self) -> List[ConnectedChat]:
+        stmt = (
+            select(ConnectedChat)
+            .where(and_(ConnectedChat.is_active.is_(True), ConnectedChat.auto_post_giveaways.is_(True)))
+            .order_by(desc(ConnectedChat.added_at))
+        )
+        res = await self.session.execute(stmt)
+        return list(res.scalars().all())
+
+    async def get_by_chat_id(self, chat_id: int) -> Optional[ConnectedChat]:
+        stmt = select(ConnectedChat).where(ConnectedChat.chat_id == chat_id)
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def deactivate(self, chat_id: int) -> bool:
+        stmt = (
+            update(ConnectedChat)
+            .where(ConnectedChat.chat_id == chat_id)
+            .values(is_active=False)
+        )
+        res = await self.session.execute(stmt)
+        return res.rowcount > 0
+
+    async def count_active(self) -> int:
+        stmt = select(func.count(ConnectedChat.id)).where(ConnectedChat.is_active.is_(True))
+        res = await self.session.execute(stmt)
+        return res.scalar_one() or 0
