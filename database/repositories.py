@@ -18,6 +18,8 @@ from database.models import (
     WinnerClaim,
     AdminLog,
     Broadcast,
+    PromoCode,
+    PromoCodeRedemption,
     GiveawayStatus,
     EntryType,
     ClaimStatus,
@@ -601,3 +603,86 @@ class BroadcastRepository:
         )
         res = await self.session.execute(stmt)
         return res.rowcount > 0
+
+
+class PromoRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        code: str,
+        entries_amount: int = 5,
+        max_uses: int = 100,
+        giveaway_id: Optional[int] = None,
+        created_by: Optional[int] = None,
+    ) -> PromoCode:
+        promo = PromoCode(
+            code=code.upper().strip(),
+            giveaway_id=giveaway_id,
+            entries_amount=entries_amount,
+            max_uses=max_uses,
+            uses_count=0,
+            created_by=created_by,
+            created_at=utcnow(),
+        )
+        self.session.add(promo)
+        await self.session.flush()
+        return promo
+
+    async def get_by_code(self, code: str) -> Optional[PromoCode]:
+        stmt = select(PromoCode).where(PromoCode.code == code.upper().strip())
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def is_redeemed_by_user(self, code_id: int, user_id: int) -> bool:
+        stmt = select(PromoCodeRedemption.id).where(
+            and_(PromoCodeRedemption.code_id == code_id, PromoCodeRedemption.user_id == user_id)
+        )
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none() is not None
+
+    async def redeem(self, code_id: int, user_id: int) -> bool:
+        redemption = PromoCodeRedemption(
+            code_id=code_id,
+            user_id=user_id,
+            redeemed_at=utcnow(),
+        )
+        self.session.add(redemption)
+        stmt = update(PromoCode).where(PromoCode.id == code_id).values(uses_count=PromoCode.uses_count + 1)
+        await self.session.execute(stmt)
+        await self.session.flush()
+        return True
+
+    async def get_all(self, limit: int = 20) -> List[PromoCode]:
+        stmt = select(PromoCode).order_by(desc(PromoCode.created_at)).limit(limit)
+        res = await self.session.execute(stmt)
+        return list(res.scalars().all())
+
+
+class LeaderboardRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_top_referrers(self, limit: int = 10) -> List[Tuple[User, int]]:
+        stmt = (
+            select(User, func.count(Referral.id).label("ref_count"))
+            .join(Referral, Referral.referrer_id == User.id)
+            .where(Referral.is_valid.is_(True))
+            .group_by(User.id)
+            .order_by(desc("ref_count"))
+            .limit(limit)
+        )
+        res = await self.session.execute(stmt)
+        return [(u, count) for u, count in res.all()]
+
+    async def get_top_ticket_holders(self, limit: int = 10) -> List[Tuple[User, int]]:
+        stmt = (
+            select(User, func.sum(Entry.amount).label("ticket_sum"))
+            .join(Entry, Entry.user_id == User.id)
+            .group_by(User.id)
+            .order_by(desc("ticket_sum"))
+            .limit(limit)
+        )
+        res = await self.session.execute(stmt)
+        return [(u, int(tsum or 0)) for u, tsum in res.all()]

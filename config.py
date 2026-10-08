@@ -29,6 +29,13 @@ class Settings(BaseSettings):
         description="SQLAlchemy async connection URL"
     )
 
+    # Branding
+    BOT_NAME: str = Field(default="John's Giveaway Bot", description="Display name of the platform")
+
+    # Groq AI Settings
+    GROQ_API_KEY: Optional[str] = Field(default=None, description="Groq Cloud API Key for ultra-fast AI intelligence")
+    GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile", description="Groq model ID")
+
     # Operational Settings
     DEFAULT_REFERRAL_BONUS: int = Field(default=1, description="Default extra entries per valid referral")
     DAILY_BONUS_ENTRIES: int = Field(default=1, description="Daily bonus entry value")

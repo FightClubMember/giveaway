@@ -16,25 +16,27 @@ router = Router(name="start")
 
 
 WELCOME_TEXT = (
-    "🎁 <b>GIVEAWAY HUB</b>\n\n"
-    "Welcome to the ultimate giveaway platform!\n"
-    "Participate in verified giveaways, complete quick community tasks, "
-    "invite friends to multiply your winning chances, and claim real prizes.\n\n"
+    "🎁 <b>JOHN'S GIVEAWAY BOT</b>\n\n"
+    "Welcome to <b>John's Giveaway Bot</b> — the premier AI-powered community giveaway platform!\n"
+    "Participate in verified giveaways, complete instant community tasks, "
+    "multiply your entries with referrals & promo codes, and win real cash, crypto, and gadget prizes.\n\n"
+    "🤖 <i>Need help? Tap <b>Ask John's AI</b> anytime to get instant answers!</i>\n"
     "✨ <i>Select an option below to get started:</i>"
 )
 
 HOW_IT_WORKS_TEXT = (
-    "ℹ️ <b>HOW GIVEAWAY HUB WORKS</b>\n\n"
+    "ℹ️ <b>HOW JOHN'S GIVEAWAY BOT WORKS</b>\n\n"
     "<b>1. Browse Active Giveaways</b>\n"
     "Explore open giveaways and review the prize, winners count, and rules.\n\n"
-    "<b>2. Join & Complete Tasks</b>\n"
+    "<b>2. Join & Verify Tasks</b>\n"
     "Tap 'Join Giveaway' and join our partner Telegram channels/groups. "
     "Our system verifies your membership in real-time.\n\n"
     "<b>3. Earn Multiplier Entries</b>\n"
     "• <b>Base Entry:</b> +1 entry upon joining.\n"
     "• <b>Referral Bonus:</b> Invite friends with your unique link for extra tickets!\n"
-    "• <b>Daily Bonus:</b> Claim a free daily activity entry every 24 hours.\n\n"
-    "<b>4. Fair & Auditable Winner Draw</b>\n"
+    "• <b>Daily Bonus:</b> Claim a free daily bonus entry every 24 hours.\n"
+    "• <b>Promo Codes:</b> Redeem secret codes from our community channels for bonus tickets!\n\n"
+    "<b>4. Fair Cryptographic Draw</b>\n"
     "When a giveaway ends, our automated cryptographic algorithm fairly selects "
     "winners proportional to tickets held. Winners receive a private alert to claim their prize.\n\n"
     "Good luck!"

@@ -19,10 +19,14 @@ def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🔥 Daily Bonus (+1)", callback_data="user_daily_bonus"),
-            InlineKeyboardButton(text="👤 My Profile", callback_data="menu_profile"),
+            InlineKeyboardButton(text="🏆 Leaderboard", callback_data="menu_leaderboard"),
         ],
         [
-            InlineKeyboardButton(text="📜 Giveaway History", callback_data="menu_history"),
+            InlineKeyboardButton(text="🎟 Redeem Promo Code", callback_data="user_redeem_code"),
+            InlineKeyboardButton(text="🤖 Ask John's AI", callback_data="menu_ai_ask"),
+        ],
+        [
+            InlineKeyboardButton(text="👤 My Profile", callback_data="menu_profile"),
             InlineKeyboardButton(text="ℹ️ How It Works", callback_data="menu_guide"),
         ],
         [

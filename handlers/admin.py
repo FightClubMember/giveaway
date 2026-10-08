@@ -1,10 +1,11 @@
 """Comprehensive Administration Dashboard and Control Center."""
 
+import asyncio
 import logging
 import math
 from aiogram import Router, F, Bot
 from aiogram.filters import Command, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
@@ -21,10 +22,14 @@ from database.repositories import (
     WinnerClaimRepository,
     ReferralRepository,
     AdminLogRepository,
+    PromoRepository,
 )
 from services.winner_service import WinnerService
 from services.broadcast_service import BroadcastService
 from services.notification_service import NotificationService
+from services.ai_service import GroqAIService
+from services.poster_service import PosterService
+from services.promo_service import PromoService
 from keyboards.admin import (
     admin_menu_keyboard,
     admin_giveaway_manage_keyboard,
@@ -68,6 +73,12 @@ class AddChannelFSM(StatesGroup):
 class BanUserFSM(StatesGroup):
     user_id = State()
     reason = State()
+
+
+class CreatePromoFSM(StatesGroup):
+    code = State()
+    amount = State()
+    max_uses = State()
 
 
 # Helper check
@@ -420,7 +431,7 @@ async def handle_resume_giveaway(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("adm_draw_"))
 async def handle_manual_draw(callback: CallbackQuery, bot: Bot) -> None:
-    """Manually trigger winner selection immediately."""
+    """Manually trigger winner selection with thrilling live slot roulette animation."""
     giveaway_id = int(callback.data.split("_")[2])
 
     async with get_session() as session:
@@ -429,6 +440,18 @@ async def handle_manual_draw(callback: CallbackQuery, bot: Bot) -> None:
         if not gw:
             await callback.answer("Giveaway not found.", show_alert=True)
             return
+
+        # Live slot roulette animation
+        if callback.message:
+            try:
+                await callback.message.edit_text("🎰 <b>LUCKY DRAW INITIATED...</b>\n\n[ 🎲 🎲 🎲 ] <i>Gathering entries pool...</i>", parse_mode="HTML")
+                await asyncio.sleep(0.8)
+                await callback.message.edit_text("🎰 <b>SPINNING WINNER WHEEL...</b>\n\n[ 🍒 7 🔔 ] <i>Applying SHA-256 entropy seed...</i>", parse_mode="HTML")
+                await asyncio.sleep(0.8)
+                await callback.message.edit_text("🎰 <b>LOCKING WINNERS...</b>\n\n[ 💎 💎 💎 ] <i>Verifying audit hash proofs...</i>", parse_mode="HTML")
+                await asyncio.sleep(0.6)
+            except Exception:
+                pass
 
         result = await WinnerService.select_winners(session, giveaway_id)
 
@@ -454,6 +477,133 @@ async def handle_manual_draw(callback: CallbackQuery, bot: Bot) -> None:
             parse_mode="HTML",
             reply_markup=admin_menu_keyboard(),
         )
+
+
+# --- POSTER STUDIO & AI GENERATORS ---
+@router.callback_query(F.data.startswith("adm_poster_"))
+async def handle_generate_poster(callback: CallbackQuery) -> None:
+    """Generate high-resolution promotional poster graphic."""
+    giveaway_id = int(callback.data.split("_")[2])
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        gw = await gw_repo.get_by_id(giveaway_id)
+        if not gw:
+            await callback.answer("Giveaway not found.", show_alert=True)
+            return
+
+    await callback.answer("🎨 Rendering HD Poster...")
+    time_left = format_time_remaining(gw.end_time)
+    poster_bytes = PosterService.generate_giveaway_poster(
+        title=gw.title,
+        prize=gw.prize,
+        winners_count=gw.winners_count,
+        time_left=time_left,
+    )
+
+    photo_file = BufferedInputFile(poster_bytes.getvalue(), filename=f"poster_gw_{gw.id}.png")
+    caption = (
+        f"🎨 <b>JOHN'S POSTER STUDIO</b>\n\n"
+        f"<b>{gw.title}</b> • <b>{gw.prize}</b>\n"
+        "High-definition poster generated on-the-fly for your announcements!"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Back to Giveaway", callback_data=f"adm_manage_{gw.id}")],
+        ]
+    )
+    if callback.message:
+        await callback.message.answer_photo(photo=photo_file, caption=caption, parse_mode="HTML", reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("adm_aicopy_"))
+async def handle_ai_copy_giveaway(callback: CallbackQuery) -> None:
+    """Generate viral marketing copy via Groq AI."""
+    giveaway_id = int(callback.data.split("_")[2])
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        gw = await gw_repo.get_by_id(giveaway_id)
+        if not gw:
+            await callback.answer("Giveaway not found.", show_alert=True)
+            return
+
+    await callback.answer("⚡ Groq AI is generating copy...")
+    copy_text = await GroqAIService.generate_giveaway_copy(
+        title=gw.title,
+        prize=gw.prize,
+        winners_count=gw.winners_count,
+        duration=format_time_remaining(gw.end_time),
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Back to Giveaway", callback_data=f"adm_manage_{gw.id}")],
+        ]
+    )
+    if callback.message:
+        await callback.message.answer(
+            f"✨ <b>GROQ AI PROMOTIONAL COPY:</b>\n\n{copy_text}",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+
+
+# --- PROMO CODE GENERATOR WIZARD ---
+@router.callback_query(F.data == "adm_create_promo")
+async def start_create_promo(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(CreatePromoFSM.code)
+    text = (
+        "🎟 <b>CREATE SECRET PROMO CODE (Step 1/3)</b>\n\n"
+        "Enter the promo code string (e.g. <code>JOHNBONUS5</code> or <code>VIPWINNER</code>):"
+    )
+    if callback.message:
+        await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=admin_cancel_keyboard())
+    await callback.answer()
+
+
+@router.message(CreatePromoFSM.code)
+async def process_promo_code(message: Message, state: FSMContext) -> None:
+    code = message.text.strip().upper()
+    await state.update_data(code=code)
+    await state.set_state(CreatePromoFSM.amount)
+    await message.reply(
+        "🎟 <b>Step 2/3: Bonus Entries Amount</b>\n\nHow many entries should this code award? (e.g. <code>5</code>):",
+        parse_mode="HTML",
+        reply_markup=admin_cancel_keyboard(),
+    )
+
+
+@router.message(CreatePromoFSM.amount)
+async def process_promo_amount(message: Message, state: FSMContext) -> None:
+    if not message.text or not message.text.strip().isdigit():
+        await message.reply("Please enter a positive integer:")
+        return
+    await state.update_data(amount=int(message.text.strip()))
+    await state.set_state(CreatePromoFSM.max_uses)
+    await message.reply(
+        "👥 <b>Step 3/3: Max Uses Limit</b>\n\nHow many unique users can redeem this code? (e.g. <code>100</code>):",
+        parse_mode="HTML",
+        reply_markup=admin_cancel_keyboard(),
+    )
+
+
+@router.message(CreatePromoFSM.max_uses)
+async def finish_create_promo(message: Message, state: FSMContext) -> None:
+    if not message.text or not message.text.strip().isdigit():
+        await message.reply("Please enter a positive integer:")
+        return
+    data = await state.get_data()
+    max_uses = int(message.text.strip())
+
+    async with get_session() as session:
+        success, msg = await PromoService.create_code(
+            session=session,
+            code=data["code"],
+            entries_amount=data["amount"],
+            max_uses=max_uses,
+            created_by=message.from_user.id,
+        )
+
+    await state.clear()
+    await message.reply(f"✅ {msg}", parse_mode="HTML", reply_markup=admin_menu_keyboard())
 
 
 @router.callback_query(F.data.startswith("adm_announce_"))

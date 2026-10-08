@@ -23,3 +23,5 @@ services:
         value: 1
       - key: DEFAULT_REFERRAL_BONUS
         value: 1
+      - key: GROQ_API_KEY
+        sync: false # Optional Groq Cloud API Key

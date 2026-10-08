@@ -14,18 +14,23 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📋 Manage Giveaways", callback_data="adm_list_gw_1"),
             ],
             [
-                InlineKeyboardButton(text="📊 Platform Stats", callback_data="adm_stats"),
-                InlineKeyboardButton(text="📢 Broadcast", callback_data="adm_broadcast"),
+                InlineKeyboardButton(text="🎨 Poster Studio", callback_data="adm_poster_menu"),
+                InlineKeyboardButton(text="✨ AI Copywriter", callback_data="adm_ai_copy"),
             ],
             [
-                InlineKeyboardButton(text="📣 Required Channels", callback_data="adm_channels"),
+                InlineKeyboardButton(text="🎟 Create Promo Code", callback_data="adm_create_promo"),
+                InlineKeyboardButton(text="📊 Platform Stats", callback_data="adm_stats"),
+            ],
+            [
+                InlineKeyboardButton(text="📢 Broadcast", callback_data="adm_broadcast"),
                 InlineKeyboardButton(text="🏆 Review Claims", callback_data="adm_claims"),
             ],
             [
+                InlineKeyboardButton(text="📣 Required Channels", callback_data="adm_channels"),
                 InlineKeyboardButton(text="🚫 Ban / Unban User", callback_data="adm_ban_manager"),
-                InlineKeyboardButton(text="📝 Activity Logs", callback_data="adm_logs"),
             ],
             [
+                InlineKeyboardButton(text="📝 Activity Logs", callback_data="adm_logs"),
                 InlineKeyboardButton(text="🔙 Return to User Bot", callback_data="back_to_main"),
             ],
         ]
@@ -40,7 +45,11 @@ def admin_giveaway_manage_keyboard(giveaway_id: int, status: str) -> InlineKeybo
     buttons = [
         [
             InlineKeyboardButton(text=pause_text, callback_data=pause_callback),
-            InlineKeyboardButton(text="🏆 Draw Winners Now", callback_data=f"adm_draw_{giveaway_id}"),
+            InlineKeyboardButton(text="🎰 Draw Winners Now (Live)", callback_data=f"adm_draw_{giveaway_id}"),
+        ],
+        [
+            InlineKeyboardButton(text="🎨 Generate Poster", callback_data=f"adm_poster_{giveaway_id}"),
+            InlineKeyboardButton(text="✨ AI Promotional Copy", callback_data=f"adm_aicopy_{giveaway_id}"),
         ],
         [
             InlineKeyboardButton(text="📢 Announce to Users", callback_data=f"adm_announce_{giveaway_id}"),

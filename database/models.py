@@ -235,3 +235,31 @@ class AdminLog(Base):
     action = Column(String(64), nullable=False)
     details = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(64), nullable=False, unique=True, index=True)
+    giveaway_id = Column(Integer, ForeignKey("giveaways.id", ondelete="CASCADE"), nullable=True)
+    entries_amount = Column(Integer, default=5, nullable=False)
+    max_uses = Column(Integer, default=100, nullable=False)
+    uses_count = Column(Integer, default=0, nullable=False)
+    created_by = Column(BigInteger, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    giveaway = relationship("Giveaway")
+
+
+class PromoCodeRedemption(Base):
+    __tablename__ = "promo_code_redemptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code_id = Column(Integer, ForeignKey("promo_codes.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    redeemed_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("code_id", "user_id", name="uq_code_user_redemption"),
+    )

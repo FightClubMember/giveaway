@@ -8,6 +8,9 @@ from handlers.profile import router as profile_router
 from handlers.winners import router as winners_router
 from handlers.claims import router as claims_router
 from handlers.admin import router as admin_router
+from handlers.ai_assistant import router as ai_router
+from handlers.leaderboard import router as leaderboard_router
+from handlers.redeem import router as redeem_router
 
 
 def setup_routers() -> Router:
@@ -20,4 +23,7 @@ def setup_routers() -> Router:
     main_router.include_router(profile_router)
     main_router.include_router(winners_router)
     main_router.include_router(claims_router)
+    main_router.include_router(ai_router)
+    main_router.include_router(leaderboard_router)
+    main_router.include_router(redeem_router)
     return main_router
