@@ -19,6 +19,9 @@ router = Router(name="profile")
 @router.callback_query(F.data == "menu_profile")
 async def handle_profile(event: Message | CallbackQuery) -> None:
     """Display comprehensive user profile and lifetime stats."""
+    if isinstance(event, CallbackQuery):
+        await event.answer()
+
     user = event.from_user
     if not user:
         return
@@ -35,7 +38,6 @@ async def handle_profile(event: Message | CallbackQuery) -> None:
                 await event.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
             except Exception:
                 await event.message.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
-        await event.answer()
     else:
         await event.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
 
@@ -43,6 +45,7 @@ async def handle_profile(event: Message | CallbackQuery) -> None:
 @router.callback_query(F.data == "menu_entries")
 async def handle_my_entries(callback: CallbackQuery) -> None:
     """Show detailed list of active giveaways user has entered."""
+    await callback.answer()
     user_id = callback.from_user.id
 
     async with get_session() as session:
@@ -71,4 +74,3 @@ async def handle_my_entries(callback: CallbackQuery) -> None:
     keyboard = back_to_menu_keyboard()
     if callback.message:
         await callback.message.edit_text(text="\n".join(lines), parse_mode="HTML", reply_markup=keyboard)
-    await callback.answer()

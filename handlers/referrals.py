@@ -17,6 +17,9 @@ router = Router(name="referrals")
 @router.callback_query(F.data == "menu_referral")
 async def handle_referrals(event: Message | CallbackQuery) -> None:
     """Display user referral stats and unique invite link."""
+    if isinstance(event, CallbackQuery):
+        await event.answer()
+
     user = event.from_user
     if not user:
         return
@@ -46,6 +49,5 @@ async def handle_referrals(event: Message | CallbackQuery) -> None:
                 await event.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
             except Exception:
                 await event.message.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
-        await event.answer()
     else:
         await event.answer(text=text, parse_mode="HTML", reply_markup=keyboard)

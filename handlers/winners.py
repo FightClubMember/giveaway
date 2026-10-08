@@ -18,6 +18,9 @@ router = Router(name="winners")
 @router.callback_query(F.data.in_(["menu_winners", "menu_history"]))
 async def handle_winners_list(event: Message | CallbackQuery) -> None:
     """Display recently ended giveaways and their official winners."""
+    if isinstance(event, CallbackQuery):
+        await event.answer()
+
     async with get_session() as session:
         giveaway_repo = GiveawayRepository(session)
         ended_giveaways = await giveaway_repo.get_ended_giveaways(limit=10)
@@ -50,7 +53,6 @@ async def handle_winners_list(event: Message | CallbackQuery) -> None:
                 await event.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
             except Exception:
                 await event.message.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
-        await event.answer()
     else:
         await event.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
 
@@ -58,6 +60,7 @@ async def handle_winners_list(event: Message | CallbackQuery) -> None:
 @router.callback_query(F.data.startswith("winners_view_"))
 async def handle_winners_detail(callback: CallbackQuery) -> None:
     """View official winners list for a specific ended giveaway."""
+    await callback.answer()
     giveaway_id = int(callback.data.split("_")[2])
 
     async with get_session() as session:

@@ -1,8 +1,17 @@
-"""Formatting utilities for premium visual layout and UI styling."""
+"""Formatting utilities for premium visual layout and colorful modern Telegram styling."""
 
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from database.models import Giveaway, Winner, User, utcnow
+
+
+def make_progress_bar(current: int, total: int, length: int = 8) -> str:
+    """Render a sleek block progress bar: ▰▰▰▰▰▱▱▱."""
+    if total <= 0:
+        return "▱" * length
+    ratio = min(1.0, max(0.0, current / total))
+    filled = int(ratio * length)
+    return "▰" * filled + "▱" * (length - filled)
 
 
 def format_time_remaining(end_time: datetime) -> str:
@@ -12,7 +21,7 @@ def format_time_remaining(end_time: datetime) -> str:
         end_time = end_time.replace(tzinfo=timezone.utc)
     
     if end_time <= now:
-        return "Ended"
+        return "Ended 🏁"
 
     diff = end_time - now
     days = diff.days
@@ -36,41 +45,45 @@ def format_giveaway_card(
     is_joined: bool = False,
     requirements_count: int = 0,
 ) -> str:
-    """Render a clean, high-conversion giveaway card."""
+    """Render a colorful, high-conversion visual card."""
     time_left = format_time_remaining(giveaway.end_time)
-    status_emoji = "🟢" if giveaway.status == "active" and time_left != "Ended" else "🔴"
+    is_live = giveaway.status == "active" and "Ended" not in time_left
+    status_badge = "🟢 <b>LIVE NOW</b>" if is_live else "🔴 <b>CLOSED</b>"
 
     lines = [
-        "━━━━━━━━━━━━━━━━━━━━━━",
+        "💎 <b>JOHN'S OFFICIAL GIVEAWAY</b> 💎",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"🎁 <b>{giveaway.title.upper()}</b>",
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        f"💰 <b>Prize:</b> {giveaway.prize}",
-        f"🏆 <b>Winners:</b> {giveaway.winners_count}",
-        f"👥 <b>Participants:</b> {participants_count:,}",
-        f"⏳ <b>Time Left:</b> {time_left} ({status_emoji} {giveaway.status.capitalize()})",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"💰 <b>Prize Pool:</b> <code>{giveaway.prize}</code>",
+        f"🏆 <b>Total Winners:</b> <b>{giveaway.winners_count}</b>",
+        f"👥 <b>Participants:</b> <b>{participants_count:,}</b>",
+        f"⏳ <b>Time Left:</b> {time_left} ({status_badge})",
     ]
 
     if giveaway.description:
         lines.append("")
-        lines.append(f"📝 {giveaway.description}")
+        lines.append(f"📝 <i>{giveaway.description}</i>")
 
     lines.append("")
-    lines.append("<b>Entry Rules & Rewards:</b>")
-    lines.append(f"• Base Entry: <b>+1 Entry</b>")
+    lines.append("⚡ <b>ENTRY MULTIPLIERS:</b>")
+    lines.append("• 🎟️ Base Entry: <b>+1 Ticket</b>")
     if giveaway.referral_bonus > 0:
-        lines.append(f"• Per Referral: <b>+{giveaway.referral_bonus} Entries</b>")
-    lines.append(f"• Maximum Cap: <b>{giveaway.max_entries_per_user} Entries</b>")
+        lines.append(f"• 👥 Per Referral: <b>+{giveaway.referral_bonus} Bonus Tickets 🚀</b>")
+    lines.append(f"• 🔒 Max Entry Cap: <b>{giveaway.max_entries_per_user} Tickets</b>")
 
     if requirements_count > 0:
-        lines.append(f"• Mandatory Channels: <b>{requirements_count} required</b>")
+        lines.append(f"• 📢 Required Channels: <b>{requirements_count} community task(s)</b>")
 
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     if is_joined:
         entries_display = user_entries if user_entries is not None else 1
-        lines.append(f"✅ <b>You're in this giveaway!</b> (Your Entries: <b>{entries_display}</b>)")
+        p_bar = make_progress_bar(entries_display, giveaway.max_entries_per_user)
+        lines.append(f"✅ <b>YOU ARE ENTERED!</b>")
+        lines.append(f"🎟️ Your Tickets: <b>{entries_display} Entries</b> <code>[{p_bar}]</code>")
     else:
-        lines.append("⚡ <i>Click the button below to complete requirements and enter!</i>")
+        lines.append("🚀 <i>Tap the button below to complete tasks & claim your free ticket!</i>")
 
     return "\n".join(lines)
 
@@ -78,19 +91,19 @@ def format_giveaway_card(
 def format_winners_card(giveaway: Giveaway, winners: List[Winner]) -> str:
     """Render transparent and official winners list."""
     lines = [
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        f"🏆 <b>OFFICIAL WINNERS: {giveaway.title.upper()}</b>",
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        f"💰 <b>Prize:</b> {giveaway.prize}",
-        f"🎯 <b>Total Winners Drawn:</b> {len(winners)}",
-        "━━━━━━━━━━━━━━━━━━━━━━",
+        "👑 <b>JOHN'S HALL OF WINNERS</b> 👑",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"🎁 <b>{giveaway.title.upper()}</b>",
+        f"💰 <b>Prize:</b> <code>{giveaway.prize}</code>",
+        f"🎯 <b>Total Drawn:</b> {len(winners)} Winner(s)",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
     ]
 
     if not winners:
-        lines.append("<i>No winners were drawn for this giveaway.</i>")
+        lines.append("<i>No winners have been selected yet.</i>")
     else:
-        medals = ["🥇", "🥈", "🥉"]
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
         for idx, w in enumerate(winners):
             rank_icon = medals[idx] if idx < len(medals) else f"<b>#{w.rank}</b>"
             user_display = f"User <code>{w.user_id}</code>"
@@ -99,54 +112,59 @@ def format_winners_card(giveaway: Giveaway, winners: List[Winner]) -> str:
             elif w.user and w.user.first_name:
                 user_display = w.user.first_name
 
-            lines.append(f"{rank_icon} {user_display} — <i>{w.entries_count} entries</i>")
+            lines.append(f"{rank_icon} {user_display} — 🎟️ <b>{w.entries_count} tickets</b>")
 
     if winners and winners[0].selection_hash:
         lines.append("")
-        lines.append(f"🔐 <b>Audit Hash:</b> <code>{winners[0].selection_hash[:16]}...</code>")
+        lines.append(f"🔐 <b>Cryptographic Proof:</b> <code>{winners[0].selection_hash[:16]}...</code>")
 
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
 
 def format_profile_card(stats: Dict[str, Any]) -> str:
-    """Format modern profile overview."""
+    """Format modern colorful user profile overview."""
     user: User = stats["user"]
+    rank_tier = "💎 VIP Member" if stats["total_entries"] >= 10 else "🌟 Contender"
+    p_bar = make_progress_bar(stats["valid_referrals"], 10)
+
     lines = [
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        "👤 <b>MY PROFILE</b>",
-        "━━━━━━━━━━━━━━━━━━━━━━",
+        "╔══════════════════════════════╗",
+        f"║   👤 <b>MY ACCOUNT OVERVIEW</b>     ║",
+        "╚══════════════════════════════╝",
         f"<b>Name:</b> {user.full_name}",
         f"<b>Username:</b> @{user.username}" if user.username else "<b>Username:</b> <i>None</i>",
-        f"<b>Telegram ID:</b> <code>{user.id}</code>",
+        f"<b>User ID:</b> <code>{user.id}</code>",
+        f"<b>Status:</b> {rank_tier}",
         "",
-        "📊 <b>Your Activity & Statistics:</b>",
-        f"🎟 <b>Total Entries Held:</b> {stats['total_entries']:,}",
-        f"🎁 <b>Giveaways Joined:</b> {stats['giveaways_joined']}",
-        f"🏆 <b>Giveaways Won:</b> {stats['wins_count']}",
-        f"👥 <b>Total Invited:</b> {stats['total_referrals']}",
-        f"✅ <b>Valid Referrals:</b> {stats['valid_referrals']}",
+        "📊 <b>YOUR STATS & TICKETS:</b>",
+        f"🎟️ <b>Total Tickets Held:</b> <b>{stats['total_entries']:,}</b>",
+        f"🎁 <b>Giveaways Joined:</b> <b>{stats['giveaways_joined']}</b>",
+        f"👑 <b>Giveaways Won:</b> <b>{stats['wins_count']}</b>",
+        f"👥 <b>Friends Invited:</b> <b>{stats['total_referrals']}</b>",
+        f"✅ <b>Verified Referrals:</b> <b>{stats['valid_referrals']}</b>",
+        f"📈 <b>Referral Tier:</b> <code>[{p_bar}]</code>",
         "",
-        "🔗 <b>Your Invite Link:</b>",
+        "🔗 <b>Your Exclusive Viral Invite Link:</b>",
         f"<code>{stats['referral_link']}</code>",
-        "━━━━━━━━━━━━━━━━━━━━━━",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
     return "\n".join(lines)
 
 
 def format_stats_card(stats: Dict[str, Any]) -> str:
-    """Format platform-wide statistics for the admin dashboard."""
+    """Format platform-wide analytics dashboard."""
     lines = [
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        "📊 <b>PLATFORM ANALYTICS DASHBOARD</b>",
-        "━━━━━━━━━━━━━━━━━━━━━━",
-        f"👥 <b>Total Registered Users:</b> {stats['total_users']:,}",
-        f"🎁 <b>Active Giveaways:</b> {stats['active_giveaways']}",
-        f"🏁 <b>Completed Giveaways:</b> {stats['ended_giveaways']}",
-        f"🎟 <b>Total Entries Accumulated:</b> {stats['total_entries']:,}",
-        f"🏆 <b>Total Winners Crowned:</b> {stats['total_winners']:,}",
-        f"👥 <b>Valid Referral Actions:</b> {stats['valid_referrals']:,}",
-        f"🚫 <b>Banned Accounts:</b> {stats['banned_users']}",
-        "━━━━━━━━━━━━━━━━━━━━━━",
+        "╔══════════════════════════════╗",
+        "║  📊 <b>JOHN'S ANALYTICS HUB</b>    ║",
+        "╚══════════════════════════════╝",
+        f"👥 <b>Total Users:</b> <code>{stats['total_users']:,}</code>",
+        f"🎁 <b>Active Giveaways:</b> <code>{stats['active_giveaways']}</code>",
+        f"🏁 <b>Completed Giveaways:</b> <code>{stats['ended_giveaways']}</code>",
+        f"🎟️ <b>Total Entries In Circulation:</b> <code>{stats['total_entries']:,}</code>",
+        f"👑 <b>Winners Crowned:</b> <code>{stats['total_winners']:,}</code>",
+        f"👥 <b>Valid Referrals:</b> <code>{stats['valid_referrals']:,}</code>",
+        f"🚫 <b>Suspended Accounts:</b> <code>{stats['banned_users']}</code>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
     return "\n".join(lines)

@@ -32,12 +32,15 @@ PAGE_SIZE = 5
 @router.callback_query(F.data == "menu_active")
 async def handle_active_giveaways(event: Message | CallbackQuery) -> None:
     """Display paginated list of active giveaways."""
+    if isinstance(event, CallbackQuery):
+        await event.answer()
     await render_giveaways_page(event, page=1)
 
 
 @router.callback_query(F.data.startswith("gw_page_"))
 async def handle_giveaway_pagination(callback: CallbackQuery) -> None:
     """Handle page navigation in active giveaways list."""
+    await callback.answer()
     page = int(callback.data.split("_")[2])
     await render_giveaways_page(callback, page=page)
 
@@ -64,7 +67,10 @@ async def render_giveaways_page(event: Message | CallbackQuery, page: int = 1) -
                 await event.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
             except Exception:
                 await event.message.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
-        await event.answer()
+        try:
+            await event.answer()
+        except Exception:
+            pass
     else:
         await event.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
 
@@ -72,6 +78,7 @@ async def render_giveaways_page(event: Message | CallbackQuery, page: int = 1) -
 @router.callback_query(F.data.startswith("gw_view_"))
 async def handle_view_giveaway(callback: CallbackQuery) -> None:
     """View detailed card for a single giveaway."""
+    await callback.answer()
     giveaway_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
 
@@ -185,6 +192,7 @@ async def handle_join_giveaway(callback: CallbackQuery, bot: Bot) -> None:
 @router.callback_query(F.data.startswith("gw_stats_"))
 async def handle_giveaway_stats(callback: CallbackQuery) -> None:
     """View granular breakdown of user's entries in a specific giveaway."""
+    await callback.answer()
     giveaway_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
 
@@ -208,12 +216,12 @@ async def handle_giveaway_stats(callback: CallbackQuery) -> None:
 
     if callback.message:
         await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("gw_rules_"))
 async def handle_giveaway_rules(callback: CallbackQuery) -> None:
     """View detailed rules and terms for a giveaway."""
+    await callback.answer()
     giveaway_id = int(callback.data.split("_")[2])
 
     async with get_session() as session:
@@ -221,7 +229,8 @@ async def handle_giveaway_rules(callback: CallbackQuery) -> None:
         giveaway = await giveaway_repo.get_by_id(giveaway_id)
 
     if not giveaway:
-        await callback.answer("Giveaway not found.", show_alert=True)
+        if callback.message:
+            await callback.message.answer("Giveaway not found.")
         return
 
     rules_content = giveaway.rules or "Standard fair-play rules apply. Duplicate and bot accounts are banned."
@@ -237,7 +246,6 @@ async def handle_giveaway_rules(callback: CallbackQuery) -> None:
 
     if callback.message:
         await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "user_daily_bonus")

@@ -9,7 +9,15 @@ from config import settings
 from database.database import get_session
 from database.repositories import UserRepository
 from services.referral_service import ReferralService
-from keyboards.user import main_menu_keyboard, back_to_menu_keyboard
+from keyboards.user import main_menu_keyboard, main_reply_keyboard, back_to_menu_keyboard
+from handlers.giveaways import handle_active_giveaways
+from handlers.referrals import handle_referrals
+from handlers.profile import handle_profile, handle_my_entries
+from handlers.leaderboard import handle_leaderboard_referrals
+from handlers.admin import handle_admin_dashboard, require_admin
+from handlers.ai_assistant import start_ask_ai_flow
+from services.giveaway_service import GiveawayService
+from aiogram.fsm.context import FSMContext
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -63,19 +71,77 @@ async def handle_start(message: Message, command: CommandObject) -> None:
         if is_new and referrer_id:
             logger.info("New user %d registered via referral from %d", user.id, referrer_id)
 
-    is_admin = settings.is_admin(user.id)
+    is_admin = require_admin(user.id)
     await message.answer(
         text=WELCOME_TEXT,
+        parse_mode="HTML",
+        reply_markup=main_reply_keyboard(is_admin=is_admin),
+    )
+    await message.answer(
+        text="💎 <b>ACTION HUB:</b>\nTap any button below or use the permanent menu bar at the bottom of your screen:",
         parse_mode="HTML",
         reply_markup=main_menu_keyboard(is_admin=is_admin),
     )
 
 
+# --- REPLY KEYBOARD ROUTERS ---
+@router.message(F.text == "🎁 Active Giveaways")
+async def handle_reply_active_giveaways(message: Message) -> None:
+    await handle_active_giveaways(message)
+
+
+@router.message(F.text == "🎟 My Entries")
+async def handle_reply_my_entries(message: Message) -> None:
+    await handle_profile(message)
+
+
+@router.message(F.text == "👥 Refer & Earn")
+async def handle_reply_referrals(message: Message) -> None:
+    await handle_referrals(message)
+
+
+@router.message(F.text == "🏆 Leaderboard")
+async def handle_reply_leaderboard(message: Message) -> None:
+    await handle_leaderboard_referrals(message)
+
+
+@router.message(F.text == "🔥 Daily Bonus")
+async def handle_reply_daily_bonus(message: Message) -> None:
+    async with get_session() as session:
+        success, msg, _ = await GiveawayService.claim_daily_bonus(session, message.from_user.id)
+    await message.reply(msg, parse_mode="HTML")
+
+
+@router.message(F.text == "🤖 Ask John's AI")
+async def handle_reply_ai(message: Message, state: FSMContext) -> None:
+    await message.reply(
+        "🤖 <b>Ask John's AI:</b>\n"
+        "Send your question now or type <code>/ask &lt;your question&gt;</code> to get an instant answer!",
+        parse_mode="HTML",
+    )
+
+
+@router.message(F.text == "👤 My Profile")
+async def handle_reply_profile(message: Message) -> None:
+    await handle_profile(message)
+
+
+@router.message(F.text == "ℹ️ How It Works")
+async def handle_reply_guide(message: Message) -> None:
+    await handle_guide(message)
+
+
+@router.message(F.text.in_(["⚙️ Admin Dashboard", "⚙️ Admin Control Center", "⚙️ Admin Panel"]))
+async def handle_reply_admin(message: Message, state: FSMContext) -> None:
+    await handle_admin_dashboard(message, state)
+
+
 @router.callback_query(F.data == "back_to_main")
 async def handle_back_to_main(callback: CallbackQuery) -> None:
     """Return user back to the primary hub menu."""
+    await callback.answer()
     user = callback.from_user
-    is_admin = settings.is_admin(user.id)
+    is_admin = require_admin(user.id)
     if callback.message:
         try:
             await callback.message.edit_text(
@@ -89,7 +155,6 @@ async def handle_back_to_main(callback: CallbackQuery) -> None:
                 parse_mode="HTML",
                 reply_markup=main_menu_keyboard(is_admin=is_admin),
             )
-    await callback.answer()
 
 
 @router.message(Command("help"))

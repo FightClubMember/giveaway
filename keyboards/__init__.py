@@ -2,6 +2,7 @@
 
 from keyboards.user import (
     main_menu_keyboard,
+    main_reply_keyboard,
     giveaways_pagination_keyboard,
     giveaway_detail_keyboard,
     channel_verification_keyboard,
@@ -18,6 +19,7 @@ from keyboards.admin import (
 
 __all__ = [
     "main_menu_keyboard",
+    "main_reply_keyboard",
     "giveaways_pagination_keyboard",
     "giveaway_detail_keyboard",
     "channel_verification_keyboard",
