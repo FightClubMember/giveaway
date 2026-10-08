@@ -1,21 +1,23 @@
-# 🎁 Telegram Giveaway & Community Growth Platform
+# 🎁 John's Giveaway Bot • AI-Powered Community Growth Platform
 
-A professional, production-ready Telegram Giveaway Bot built with Python 3.13, **aiogram 3**, and **SQLAlchemy 2.0 (Async)**. Featuring a modern, high-conversion UI, comprehensive anti-abuse protections, real-time channel membership verification, viral referral tracking, automated cryptographic winner selection, and a complete Telegram administration control panel.
+A professional, production-ready Telegram Giveaway Platform built with Python 3.13, **aiogram 3**, **Groq AI**, **Pillow HD Poster Studio**, and **SQLAlchemy 2.0 (Async)**. Featuring a modern, high-conversion UI, real-time channel membership verification, viral referral tracking, automated cryptographic winner selection, live roulette draw animation, secret promo vouchers, community leaderboards, and an in-bot admin control panel.
 
 ---
 
-## 🌟 Key Highlights & Features
+## 🌟 Key Highlights & Advanced Features
 
-### 👤 User Experience
-- **Premium Giveaway Hub:** Clean, modern emoji hierarchy, persistent inline menus, and paginated discovery.
-- **Real-Time Membership Verification:** Direct Telegram Bot API verification (`get_chat_member`) checking channel/group membership before granting giveaway tickets.
-- **Multiple Entry Accumulation:**
-  - Base Entry (+1) upon passing channel verification.
-  - Referral Multiplier (+X) per valid invited friend.
-  - Daily Activity Bonus (+1) with a 24-hour countdown cooldown.
-- **Auditable Fair Winner Selection:** Cryptographically secure draw (`secrets.SystemRandom` with SHA-256 audit seed) weighted by entries held, preventing duplicate winners.
-- **Private Winner Claim System:** Secure FSM flow allowing winners to privately provide UPI / Crypto / Shipping details, with automated alerts to administrators and 24-hour expiration.
-- **Granular User Profile:** Lifetime entries, total referrals, verified referrals, active entries, and wins tracker.
+### 🤖 Groq AI Intelligence (`llama-3.3-70b-versatile`)
+- **AI Concierge for Users:** Real-time interactive Q&A (`/ask <question>` or via the inline menu) answering user questions about rules, referral multipliers, prize delivery, and fairness.
+- **AI Copywriter for Admins:** 1-click viral giveaway announcement generator creating persuasive, high-converting copy with emojis and urgency.
+
+### 🎨 HD Poster Studio & Live Animations
+- **Dynamic Graphical Poster Generator:** Uses Pillow to render 1000x560 HD promotional banner graphics on-the-fly for any giveaway.
+- **Live Slot Roulette Draw Animation:** Simulates a thrilling live lottery reveal (`🎰 Drawing... [ 🎲 🎲 🎲 ] ➔ [ 🍒 7 🔔 ] ➔ [ 💎 💎 💎 ]`) before revealing winners.
+
+### 🏆 Gamification & Community Growth
+- **Community Leaderboard:** Live Hall of Fame ranking top referrers and top ticket holders with gold/silver/bronze medals.
+- **Secret Promo / Voucher Codes:** Admins can drop limited promo codes (`/redeem <code>`) for instant bonus entries.
+- **Daily Bonus:** Free entry claimable every 24 hours.
 
 ### ⚙️ Administration Dashboard
 - **In-Bot Admin Panel (`/admin`):**
