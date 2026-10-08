@@ -77,6 +77,17 @@ async def init_db(max_retries: int = 5, retry_delay: int = 3) -> None:
             logger.info("Initializing database schema (Attempt %d/%d)...", attempt, max_retries)
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                # Ensure new reward columns exist in PostgreSQL
+                for alter_sql in [
+                    "ALTER TABLE giveaways ADD COLUMN IF NOT EXISTS claim_type VARCHAR(32) DEFAULT 'manual';",
+                    "ALTER TABLE giveaways ADD COLUMN IF NOT EXISTS secret_reward TEXT;",
+                    "ALTER TABLE giveaways ADD COLUMN IF NOT EXISTS custom_claim_prompt TEXT;",
+                ]:
+                    try:
+                        from sqlalchemy import text
+                        await conn.execute(text(alter_sql))
+                    except Exception:
+                        pass
             logger.info("Database schema initialized successfully.")
             return
         except Exception as e:

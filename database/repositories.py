@@ -142,6 +142,9 @@ class GiveawayRepository:
         rules: Optional[str] = None,
         created_by: Optional[int] = None,
         auto_draw: bool = True,
+        claim_type: str = "manual",
+        secret_reward: Optional[str] = None,
+        custom_claim_prompt: Optional[str] = None,
     ) -> Giveaway:
         giveaway = Giveaway(
             title=title,
@@ -157,11 +160,33 @@ class GiveawayRepository:
             rules=rules,
             auto_draw=auto_draw,
             created_by=created_by,
+            claim_type=claim_type,
+            secret_reward=secret_reward,
+            custom_claim_prompt=custom_claim_prompt,
             created_at=utcnow(),
         )
         self.session.add(giveaway)
         await self.session.flush()
         return giveaway
+
+    async def update_reward_settings(
+        self,
+        giveaway_id: int,
+        claim_type: str,
+        secret_reward: Optional[str] = None,
+        custom_claim_prompt: Optional[str] = None,
+    ) -> bool:
+        stmt = (
+            update(Giveaway)
+            .where(Giveaway.id == giveaway_id)
+            .values(
+                claim_type=claim_type,
+                secret_reward=secret_reward,
+                custom_claim_prompt=custom_claim_prompt,
+            )
+        )
+        res = await self.session.execute(stmt)
+        return res.rowcount > 0
 
     async def get_by_id(self, giveaway_id: int) -> Optional[Giveaway]:
         stmt = select(Giveaway).where(Giveaway.id == giveaway_id)

@@ -36,6 +36,7 @@ from keyboards.admin import (
     admin_giveaway_manage_keyboard,
     admin_claim_action_keyboard,
     admin_channels_keyboard,
+    admin_reward_options_keyboard,
     admin_cancel_keyboard,
 )
 from keyboards.user import main_menu_keyboard
@@ -80,6 +81,12 @@ class CreatePromoFSM(StatesGroup):
     code = State()
     amount = State()
     max_uses = State()
+
+
+class SetRewardFSM(StatesGroup):
+    giveaway_id = State()
+    waiting_for_secret_code = State()
+    waiting_for_custom_prompt = State()
 
 
 # Runtime administrator cache to prevent initial lockout
@@ -432,16 +439,31 @@ async def finish_create_giveaway(message: Message, state: FSMContext) -> None:
             details=f"Created giveaway #{giveaway.id}: {giveaway.title}",
         )
 
-    await state.clear()
+    quick_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🎁 Set Secret Reward / Claim Type", callback_data=f"adm_reward_{giveaway.id}", style="success"),
+                InlineKeyboardButton(text="📢 Announce", callback_data=f"adm_announce_{giveaway.id}", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="🎨 Generate HD Poster", callback_data=f"adm_poster_{giveaway.id}", style="primary"),
+                InlineKeyboardButton(text="⚙️ Manage Giveaway", callback_data=f"adm_manage_{giveaway.id}", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back to Admin Hub", callback_data="admin_hub", style="primary"),
+            ],
+        ]
+    )
+
     await message.reply(
         f"✅ <b>Giveaway #{giveaway.id} Created Successfully!</b>\n\n"
         f"🎁 <b>Title:</b> {giveaway.title}\n"
         f"💰 <b>Prize:</b> {giveaway.prize}\n"
         f"🏆 <b>Winners:</b> {giveaway.winners_count}\n"
         f"⏳ <b>Ends In:</b> {format_time_remaining(giveaway.end_time)}\n\n"
-        "You can now manage, announce, or view this giveaway in the dashboard.",
+        "💡 <b>Tip:</b> Agar iska koi instant redeem code ya specific claim question set karna hai, to neeche button se turant set kar sakte ho!",
         parse_mode="HTML",
-        reply_markup=admin_menu_keyboard(),
+        reply_markup=quick_kb,
     )
 
 
@@ -505,11 +527,18 @@ async def manage_single_giveaway(callback: CallbackQuery) -> None:
         participants = await part_repo.count_for_giveaway(giveaway_id)
         entries = await entry_repo.count_for_giveaway(giveaway_id)
 
+    delivery_mode = "⚡ Instant Auto-Delivery (Redeem Code/Voucher)" if (gw.claim_type == "instant" or gw.secret_reward) else "📝 Manual Admin Review"
+    reward_preview = f"<code>{gw.secret_reward}</code>" if gw.secret_reward else "<i>None (Admin distributes manually)</i>"
+    prompt_preview = f"<i>{gw.custom_claim_prompt}</i>" if gw.custom_claim_prompt else "<i>Default standard prompt</i>"
+
     text = (
         f"🎁 <b>GIVEAWAY #{gw.id} CONTROL</b>\n\n"
         f"<b>Title:</b> {gw.title}\n"
         f"<b>Status:</b> {gw.status.upper()}\n"
         f"<b>Prize:</b> {gw.prize}\n"
+        f"<b>Reward Delivery Mode:</b> {delivery_mode}\n"
+        f"<b>Secret Code / Voucher:</b> {reward_preview}\n"
+        f"<b>Custom Claim Question:</b> {prompt_preview}\n"
         f"<b>Winners:</b> {gw.winners_count}\n"
         f"<b>Participants:</b> {participants:,}\n"
         f"<b>Total Entries:</b> {entries:,}\n"
@@ -520,6 +549,153 @@ async def manage_single_giveaway(callback: CallbackQuery) -> None:
     if callback.message:
         await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=keyboard)
     await callback.answer()
+
+
+# --- REWARD & CLAIM SETTINGS HANDLERS ---
+@router.callback_query(F.data.startswith("adm_reward_"))
+async def handle_manage_reward_settings(callback: CallbackQuery, state: FSMContext) -> None:
+    giveaway_id = int(callback.data.split("_")[2])
+    await state.clear()
+
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        gw = await gw_repo.get_by_id(giveaway_id)
+        if not gw:
+            await callback.answer("Giveaway not found.", show_alert=True)
+            return
+
+    reward_status = "⚡ <b>Instant Auto-Deliver</b>" if (gw.claim_type == "instant" or gw.secret_reward) else "📝 <b>Manual Approval</b>"
+    secret_display = f"<code>{gw.secret_reward}</code>" if gw.secret_reward else "<i>None set</i>"
+    prompt_display = f"<i>{gw.custom_claim_prompt}</i>" if gw.custom_claim_prompt else "<i>Default standard question</i>"
+
+    text = (
+        f"🎁 <b>REWARD & CLAIM CONFIGURATION (Giveaway #{gw.id})</b>\n\n"
+        f"Prize: <b>{gw.prize}</b>\n"
+        f"Current Delivery Mode: {reward_status}\n"
+        f"Secret Code / Voucher: {secret_display}\n"
+        f"Custom Winner Question: {prompt_display}\n\n"
+        "💡 <b>Kaise kaam karta hai?</b>\n"
+        "• <b>Instant Code/Link:</b> Agar tum redeem code ya private link dalte ho, to winner jaise hi claim karega, usko TURANT uska code mil jayega bina kisi manual delay ke!\n"
+        "• <b>Custom Question/Prompt:</b> Agar tum koi specific detail mangna chahte ho (e.g. 'Apna BGMI Character ID bhejo' ya 'Amazon email do'), to yahan set kar sakte ho. Winner ko koi rigid UPI/Crypto prompt nahi dikhega!\n"
+        "• <b>Manual Approval:</b> Winner claim karega aur admin usko check karke approve/reject karega."
+    )
+    if callback.message:
+        await callback.message.edit_text(
+            text=text,
+            parse_mode="HTML",
+            reply_markup=admin_reward_options_keyboard(giveaway_id=gw.id),
+        )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm_setcode_"))
+async def handle_prompt_secret_code(callback: CallbackQuery, state: FSMContext) -> None:
+    giveaway_id = int(callback.data.split("_")[2])
+    await state.set_state(SetRewardFSM.waiting_for_secret_code)
+    await state.update_data(giveaway_id=giveaway_id)
+    text = (
+        f"🔑 <b>SET INSTANT REDEEM CODE / VOUCHER (Giveaway #{giveaway_id})</b>\n\n"
+        "Bhai ab apna secret redeem code, coupon, gift voucher ya download link chat me send kar do.\n\n"
+        "<i>Winner claim button dabate hi instant ye reward receive karega!</i>"
+    )
+    if callback.message:
+        await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=admin_cancel_keyboard())
+    await callback.answer()
+
+
+@router.message(SetRewardFSM.waiting_for_secret_code)
+async def handle_save_secret_code(message: Message, state: FSMContext) -> None:
+    code_text = (message.text or "").strip()
+    if not code_text:
+        await message.answer("Bhai reward text khali nahi ho sakta! Please code ya voucher enter karo.")
+        return
+
+    data = await state.get_data()
+    giveaway_id = data.get("giveaway_id")
+    await state.clear()
+
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        await gw_repo.update_reward_settings(
+            giveaway_id=giveaway_id,
+            claim_type="instant",
+            secret_reward=code_text,
+        )
+
+    await message.answer(
+        f"✅ <b>Instant Reward Saved!</b>\n\n"
+        f"Giveaway #{giveaway_id} ka reward set ho gaya:\n"
+        f"<code>{code_text}</code>\n\n"
+        "Winner claim karte hi usko bina kisi delay ke ye reward turant deliver ho jayega!",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="🔙 Back to Giveaway", callback_data=f"adm_manage_{giveaway_id}")]]
+        ),
+    )
+
+
+@router.callback_query(F.data.startswith("adm_setprompt_"))
+async def handle_prompt_custom_question(callback: CallbackQuery, state: FSMContext) -> None:
+    giveaway_id = int(callback.data.split("_")[2])
+    await state.set_state(SetRewardFSM.waiting_for_custom_prompt)
+    await state.update_data(giveaway_id=giveaway_id)
+    text = (
+        f"✍️ <b>SET CUSTOM CLAIM QUESTION (Giveaway #{giveaway_id})</b>\n\n"
+        "Bhai winner se jo specific detail mangna chahte ho wo likh kar bhej do.\n\n"
+        "<i>Example: 'Apna BGMI Character ID aur in-game name bhejo' ya 'Apna Steam profile link send karo'</i>"
+    )
+    if callback.message:
+        await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=admin_cancel_keyboard())
+    await callback.answer()
+
+
+@router.message(SetRewardFSM.waiting_for_custom_prompt)
+async def handle_save_custom_prompt(message: Message, state: FSMContext) -> None:
+    prompt_text = (message.text or "").strip()
+    if not prompt_text:
+        await message.answer("Bhai instruction text khali nahi ho sakta! Please message likh kar bhejo.")
+        return
+
+    data = await state.get_data()
+    giveaway_id = data.get("giveaway_id")
+    await state.clear()
+
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        await gw_repo.update_reward_settings(
+            giveaway_id=giveaway_id,
+            claim_type="manual",
+            custom_claim_prompt=prompt_text,
+        )
+
+    await message.answer(
+        f"✅ <b>Custom Claim Question Saved!</b>\n\n"
+        f"Giveaway #{giveaway_id} ke winner ko ab yahi exact instruction dikhegi:\n"
+        f"<i>\"{prompt_text}\"</i>\n\n"
+        "Koi rigid UPI/Crypto prompt nahi aayega!",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="🔙 Back to Giveaway", callback_data=f"adm_manage_{giveaway_id}")]]
+        ),
+    )
+
+
+@router.callback_query(F.data.startswith("adm_setmanual_"))
+async def handle_switch_manual_claim(callback: CallbackQuery, state: FSMContext) -> None:
+    giveaway_id = int(callback.data.split("_")[2])
+    await state.clear()
+
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        await gw_repo.update_reward_settings(
+            giveaway_id=giveaway_id,
+            claim_type="manual",
+            secret_reward=None,
+        )
+
+    await callback.answer("Switched to Manual Admin Approval! 📝", show_alert=True)
+    callback.data = f"adm_reward_{giveaway_id}"
+    await handle_manage_reward_settings(callback, state)
 
 
 @router.callback_query(F.data.startswith("adm_pause_"))

@@ -88,8 +88,8 @@ async def handle_start_claim(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("claim_trust_yes_"))
-async def handle_trust_confirmed(callback: CallbackQuery, state: FSMContext) -> None:
-    """Step 2: User confirmed trust. Prompt for payment/shipping details."""
+async def handle_trust_confirmed(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    """Step 2: User confirmed trust. Deliver instant secret code OR prompt for custom details."""
     await callback.answer()
     giveaway_id = int(callback.data.split("_")[3])
     user_id = callback.from_user.id
@@ -97,6 +97,7 @@ async def handle_trust_confirmed(callback: CallbackQuery, state: FSMContext) -> 
     async with get_session() as session:
         winner_repo = WinnerRepository(session)
         giveaway_repo = GiveawayRepository(session)
+        claim_repo = WinnerClaimRepository(session)
 
         winner = await winner_repo.get_by_giveaway_and_user(giveaway_id, user_id)
         giveaway = await giveaway_repo.get_by_id(giveaway_id)
@@ -105,6 +106,52 @@ async def handle_trust_confirmed(callback: CallbackQuery, state: FSMContext) -> 
         await callback.answer("Record nahi mila.", show_alert=True)
         return
 
+    # 1. INSTANT REWARD MODE: If admin attached a secret redeem code/reward
+    if (giveaway.claim_type == "instant" or giveaway.secret_reward) and giveaway.secret_reward:
+        expires_at = utcnow() + timedelta(hours=settings.CLAIM_WINDOW_HOURS)
+        async with get_session() as session:
+            claim_repo = WinnerClaimRepository(session)
+            claim = await claim_repo.create(
+                winner_id=winner.id,
+                giveaway_id=giveaway_id,
+                user_id=user_id,
+                claim_data=f"Instant Secret Reward: {giveaway.secret_reward}",
+                expires_at=expires_at,
+            )
+            await claim_repo.update_status(claim.id, ClaimStatus.APPROVED, notes="Instant Reward Delivered")
+
+        text = (
+            f"🎉 <b>BADHAI HO BHAI! REWARD UNLOCKED INSTANTLY!</b> 🎁\n\n"
+            f"• <b>Giveaway:</b> {giveaway.title}\n"
+            f"• <b>Prize:</b> {giveaway.prize}\n\n"
+            f"🔑 <b>Aapka Secret Reward / Redeem Code:</b>\n"
+            f"<code>{giveaway.secret_reward}</code>\n\n"
+            "⚡ <i>Is code ko copy karke turant redeem kar lo bhai! Congratulations on winning!</i> 🔥"
+        )
+        if callback.message:
+            await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=back_to_menu_keyboard())
+
+        # Notify all admins of instant reward delivery
+        from handlers.admin import RUNTIME_ADMINS
+        all_admins = set(settings.admin_id_list) | RUNTIME_ADMINS
+        winner_name = f"@{callback.from_user.username}" if callback.from_user.username else (callback.from_user.full_name or f"User #{user_id}")
+        admin_alert = (
+            "🚨 <b>INSTANT REWARD CLAIM REPORT!</b> 🏆\n\n"
+            f"• <b>Giveaway:</b> {giveaway.title} (ID #{giveaway.id})\n"
+            f"• <b>Winner:</b> {winner_name} (ID: <code>{user_id}</code>)\n"
+            f"• <b>Prize:</b> {giveaway.prize}\n"
+            f"• <b>Delivered Code:</b> <code>{giveaway.secret_reward}</code>\n"
+            f"• <b>Trust Feedback:</b> 100% Confirmed & Trusted ✅\n"
+            f"• <b>Status:</b> APPROVED (INSTANT DELIVERY)"
+        )
+        for admin_id in all_admins:
+            try:
+                await bot.send_message(chat_id=admin_id, text=admin_alert, parse_mode="HTML")
+            except Exception:
+                pass
+        return
+
+    # 2. MANUAL DETAILS SUBMISSION: Use admin's custom prompt or clean default
     await state.set_state(ClaimStates.waiting_for_details)
     await state.update_data(
         winner_id=winner.id,
@@ -113,16 +160,19 @@ async def handle_trust_confirmed(callback: CallbackQuery, state: FSMContext) -> 
         giveaway_prize=giveaway.prize,
     )
 
+    custom_instructions = giveaway.custom_claim_prompt or (
+        "Bhai apni delivery ya payment details neeche message me type karke bhejo:\n"
+        "• <b>UPI ID / PhonePe</b> (Cash ke liye)\n"
+        "• <b>Crypto Address</b> (USDT / TON ke liye)\n"
+        "• <b>Email / Account / Address</b> (Prize ke hisaab se)"
+    )
+
     text = (
         f"📝 <b>SUBMIT DETAILS TO RECEIVE PRIZE</b>\n\n"
         f"🎁 Giveaway: <b>{giveaway.title}</b>\n"
         f"💰 Prize: <b>{giveaway.prize}</b>\n\n"
-        "Bhai apni delivery ya payment details neeche message me type karke bhejo:\n"
-        "• <b>UPI ID / PhonePe / GPay</b> (Cash prize ke liye: jaise <code>9876543210@paytm</code>)\n"
-        "• <b>Crypto Wallet Address & Network</b> (USDT TRC20 / TON / BEP20)\n"
-        "• <b>Telegram Username ya Email</b> (Premium / Vouchers ke liye)\n"
-        "• <b>Delivery Address & Phone</b> (Physical gift ke liye)\n\n"
-        "🔒 <i>Details encrypted hain aur direct Admin Boss ke paas approval ke liye jaayengi!</i>"
+        f"{custom_instructions}\n\n"
+        "🔒 <i>Details secure hain aur direct Admin Boss ke paas approval ke liye jaayengi!</i>"
     )
 
     if callback.message:

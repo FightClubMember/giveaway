@@ -53,11 +53,14 @@ def admin_giveaway_manage_keyboard(giveaway_id: int, status: str) -> InlineKeybo
             InlineKeyboardButton(text="✨ AI Promotional Copy", callback_data=f"adm_aicopy_{giveaway_id}", style="primary"),
         ],
         [
-            InlineKeyboardButton(text="📢 Announce to Users", callback_data=f"adm_announce_{giveaway_id}", style="primary"),
+            InlineKeyboardButton(text="🎁 Set Secret Reward / Claim Type", callback_data=f"adm_reward_{giveaway_id}", style="success"),
             InlineKeyboardButton(text="📊 Stats & Participants", callback_data=f"adm_gw_stats_{giveaway_id}", style="primary"),
         ],
         [
+            InlineKeyboardButton(text="📢 Announce to Users", callback_data=f"adm_announce_{giveaway_id}", style="primary"),
             InlineKeyboardButton(text="🗑 Delete Giveaway", callback_data=f"adm_delete_{giveaway_id}", style="danger"),
+        ],
+        [
             InlineKeyboardButton(text="🔙 Back to List", callback_data="adm_list_gw_1", style="primary"),
         ],
     ]
@@ -94,6 +97,26 @@ def admin_channels_keyboard(channels: List[GiveawayRequirement]) -> InlineKeyboa
     buttons.append([InlineKeyboardButton(text="➕ Add New Channel", callback_data="adm_add_channel", style="success")])
     buttons.append([InlineKeyboardButton(text="🔙 Back to Admin Hub", callback_data="admin_hub", style="primary")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_reward_options_keyboard(giveaway_id: int) -> InlineKeyboardMarkup:
+    """Options for setting secret reward or custom claim instructions."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔑 Set Instant Redeem Code / Link", callback_data=f"adm_setcode_{giveaway_id}", style="success"),
+            ],
+            [
+                InlineKeyboardButton(text="✍️ Set Custom Claim Question/Prompt", callback_data=f"adm_setprompt_{giveaway_id}", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="🔄 Switch to Manual Approval", callback_data=f"adm_setmanual_{giveaway_id}", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back to Giveaway Control", callback_data=f"adm_manage_{giveaway_id}", style="primary"),
+            ],
+        ]
+    )
 
 
 def admin_cancel_keyboard() -> InlineKeyboardMarkup:

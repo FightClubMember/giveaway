@@ -48,3 +48,24 @@ async def test_winner_claim_creation_and_approval(test_session, sample_giveaway)
     assert updated_claim.status == ClaimStatus.APPROVED.value
     assert updated_claim.reviewed_by == 999999
     assert "987654" in updated_claim.admin_notes
+
+
+@pytest.mark.asyncio
+async def test_instant_reward_and_custom_prompt_settings(test_session, sample_giveaway):
+    from database.repositories import GiveawayRepository
+    gw_repo = GiveawayRepository(test_session)
+
+    # Configure instant redeem reward
+    success = await gw_repo.update_reward_settings(
+        giveaway_id=sample_giveaway.id,
+        claim_type="instant",
+        secret_reward="STEAM-KEY-XYZ-999",
+        custom_claim_prompt="Enjoy your Steam key directly!",
+    )
+    assert success is True
+
+    # Verify retrieval
+    gw = await gw_repo.get_by_id(sample_giveaway.id)
+    assert gw.claim_type == "instant"
+    assert gw.secret_reward == "STEAM-KEY-XYZ-999"
+    assert gw.custom_claim_prompt == "Enjoy your Steam key directly!"

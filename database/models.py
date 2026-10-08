@@ -98,6 +98,9 @@ class Giveaway(Base):
     max_entries_per_user = Column(Integer, default=100, nullable=False)
     image_url = Column(String(1024), nullable=True)
     rules = Column(Text, nullable=True)
+    claim_type = Column(String(32), default="manual", nullable=False)  # "manual" or "instant"
+    secret_reward = Column(Text, nullable=True)  # Redeem code, Gift card key, Private voucher
+    custom_claim_prompt = Column(Text, nullable=True)  # Custom prompt instructions shown to winner
     auto_draw = Column(Boolean, default=True, nullable=False)
     created_by = Column(BigInteger, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
