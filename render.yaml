@@ -1,0 +1,33 @@
+databases:
+  - name: giveaway-postgres
+    databaseName: giveaways
+    user: postgres
+    plan: free # or standard
+
+services:
+  - type: web
+    name: giveaway-bot
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python bot.py"
+    plan: free # Can also be run on paid background worker
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: giveaway-postgres
+          property: connectionString
+      - key: BOT_TOKEN
+        sync: false
+      - key: BOT_USERNAME
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CLAIM_WINDOW_HOURS
+        value: 24
+      - key: DAILY_BONUS_ENTRIES
+        value: 1
+      - key: DEFAULT_REFERRAL_BONUS
+        value: 1

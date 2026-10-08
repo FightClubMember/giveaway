@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: giveaway_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: giveaways
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecretpassword
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    container_name: giveaway_bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:supersecretpassword@postgres:5432/giveaways
+
+volumes:
+  pgdata:
