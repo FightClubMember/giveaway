@@ -148,3 +148,94 @@ class GroqAIService:
             "━━━━━━━━━━━━━━━━━━━━━━\n"
             "🛡 <i>Powered by John's Giveaway Bot • 100% Fair & Verified</i>"
         )
+
+    @classmethod
+    async def analyze_user_odds(
+        cls,
+        user_name: str,
+        user_entries: int,
+        total_entries: int,
+        winners_count: int,
+        giveaway_title: str,
+    ) -> str:
+        """Calculate and explain mathematically verified winning odds with actionable growth tips."""
+        client = cls.get_client()
+        if total_entries <= 0:
+            percentage = 100.0
+        else:
+            # Hypergeometric/probabilistic approximate odds:
+            # 1 - ( (total_entries - user_entries) / total_entries ) ^ winners_count
+            prob_not_winning = (max(0, total_entries - user_entries) / max(1, total_entries)) ** max(1, winners_count)
+            percentage = min(100.0, max(0.0, (1.0 - prob_not_winning) * 100.0))
+
+        system_prompt = (
+            "You are John's AI Concierge. Give the user an encouraging, analytical, and punchy breakdown "
+            "of their winning odds in a Telegram giveaway. Mention how extra referrals and daily check-ins "
+            "can boost their chances. Keep it short (3-4 bullet points) with emojis."
+        )
+        user_prompt = (
+            f"User: {user_name}\n"
+            f"Giveaway: {giveaway_title}\n"
+            f"User Entries: {user_entries}\n"
+            f"Total Pool Entries: {total_entries}\n"
+            f"Winners to be picked: {winners_count}\n"
+            f"Calculated Probability: {percentage:.1f}%\n"
+        )
+
+        if client:
+            try:
+                response = await client.chat.completions.create(
+                    model=settings.GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.6,
+                    max_tokens=250,
+                )
+                return response.choices[0].message.content or ""
+            except Exception as e:
+                logger.warning("Groq AI odds analysis error: %s", e)
+
+        # Smart deterministic calculation fallback
+        return (
+            f"📊 <b>ODDS ANALYSIS FOR {giveaway_title.upper()}:</b>\n\n"
+            f"• 🎟 Your Tickets: <b>{user_entries}</b> / {total_entries}\n"
+            f"• 🎯 Winning Probability: <b>~{percentage:.1f}%</b>\n"
+            f"• 💡 <b>Pro Strategy:</b> Each referral adds +1 entry directly to your odds! "
+            f"Inviting just 3 friends increases your chance noticeably.\n"
+            f"• ⚡ Don't forget to claim your <b>🔥 Daily Bonus</b> every 24h!"
+        )
+
+    @classmethod
+    async def generate_giveaway_ideas(cls, niche: str = "general") -> str:
+        """Generate high-performing giveaway concept ideas for channel admins."""
+        client = cls.get_client()
+        system_prompt = (
+            "You are an expert Telegram growth strategist. Recommend 3 viral giveaway ideas "
+            "with attractive prizes, catchy titles, and suggested tasks to maximize viral sharing."
+        )
+        if client:
+            try:
+                response = await client.chat.completions.create(
+                    model=settings.GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Giveaway niche: {niche}"},
+                    ],
+                    temperature=0.8,
+                    max_tokens=300,
+                )
+                return response.choices[0].message.content or ""
+            except Exception as e:
+                logger.warning("Groq AI idea generation error: %s", e)
+
+        return (
+            "💡 <b>TOP GIVEAWAY CONCEPTS FOR CHANNEL GROWTH:</b>\n\n"
+            "1️⃣ <b>₹1,000 / $25 UPI or Crypto Fast Drop</b> (Duration: 48h, 3 Winners)\n"
+            "   <i>Instant community engagement with high referral virality.</i>\n\n"
+            "2️⃣ <b>Telegram Premium 3-Month Subscriptions</b> (Duration: 5 Days, 5 Winners)\n"
+            "   <i>Zero shipping hassle, universally desired by Telegram members.</i>\n\n"
+            "3️⃣ <b>Gaming / Gadget Mega Pass (AirPods / PS5 Voucher)</b> (Duration: 7 Days, 1 Winner)\n"
+            "   <i>Massive growth campaign suitable for community milestone celebrations.</i>"
+        )

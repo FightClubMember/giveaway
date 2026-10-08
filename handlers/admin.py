@@ -144,9 +144,10 @@ async def handle_admin_dashboard(event: Message | CallbackQuery, state: FSMConte
         return
 
     await state.clear()
+    admin_name = f"@{user.username}" if user.username else (user.full_name or f"Admin #{user.id}")
     text = (
         "⚙️ <b>ADMINISTRATION CONTROL PANEL</b>\n\n"
-        f"Welcome, Administrator {user.mention}!\n"
+        f"Welcome, Administrator <b>{admin_name}</b>!\n"
         "Manage active giveaways, inspect analytics, dispatch broadcasts, and review claims."
     )
     keyboard = admin_menu_keyboard()
@@ -837,11 +838,12 @@ async def handle_view_single_claim(callback: CallbackQuery) -> None:
         gw = await gw_repo.get_by_id(claim.giveaway_id)
         user = await user_repo.get_by_id(claim.user_id)
 
+    user_label = user.mention if (user and hasattr(user, 'mention')) else str(claim.user_id)
     text = (
         f"🏆 <b>CLAIM #{claim.id} DETAILS</b>\n\n"
         f"<b>Giveaway:</b> {gw.title if gw else 'N/A'}\n"
         f"<b>Prize:</b> {gw.prize if gw else 'N/A'}\n"
-        f"<b>User:</b> {user.mention if user else claim.user_id} (<code>{claim.user_id}</code>)\n"
+        f"<b>User:</b> {user_label} (<code>{claim.user_id}</code>)\n"
         f"<b>Status:</b> {claim.status.upper()}\n\n"
         f"<b>Claim Info Provided:</b>\n<code>{claim.claim_data}</code>"
     )

@@ -72,15 +72,11 @@ async def handle_start(message: Message, command: CommandObject) -> None:
             logger.info("New user %d registered via referral from %d", user.id, referrer_id)
 
     is_admin = require_admin(user.id)
+    # Send single elegant welcome card with persistent bottom reply keyboard attached
     await message.answer(
         text=WELCOME_TEXT,
         parse_mode="HTML",
         reply_markup=main_reply_keyboard(is_admin=is_admin),
-    )
-    await message.answer(
-        text="💎 <b>ACTION HUB:</b>\nTap any button below or use the permanent menu bar at the bottom of your screen:",
-        parse_mode="HTML",
-        reply_markup=main_menu_keyboard(is_admin=is_admin),
     )
 
 
@@ -114,9 +110,15 @@ async def handle_reply_daily_bonus(message: Message) -> None:
 
 @router.message(F.text == "🤖 Ask John's AI")
 async def handle_reply_ai(message: Message, state: FSMContext) -> None:
+    from handlers.ai_assistant import AskAIStates
+    await state.set_state(AskAIStates.waiting_for_question)
     await message.reply(
-        "🤖 <b>Ask John's AI:</b>\n"
-        "Send your question now or type <code>/ask &lt;your question&gt;</code> to get an instant answer!",
+        "🤖 <b>John's AI Concierge:</b>\n\n"
+        "Ask me anything! For example:\n"
+        "• <i>How do I maximize my chance to win?</i>\n"
+        "• <i>How do referral bonuses work?</i>\n"
+        "• <i>How are winners drawn fairly?</i>\n\n"
+        "💬 <i>Type your question below:</i>",
         parse_mode="HTML",
     )
 

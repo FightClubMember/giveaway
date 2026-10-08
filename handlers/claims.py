@@ -118,11 +118,12 @@ async def handle_submit_claim_details(message: Message, state: FSMContext, bot: 
     )
 
     # Dispatch alert to administrators
+    winner_name = f"@{user.username}" if user.username else (user.full_name or f"User #{user.id}")
     admin_alert = (
         "🏆 <b>NEW PRIZE CLAIM RECEIVED!</b>\n\n"
         f"Claim ID: <code>#{claim_id}</code>\n"
         f"Giveaway: <b>{giveaway_title}</b> (ID: {giveaway_id})\n"
-        f"Winner: {user.mention} (<code>{user.id}</code>)\n\n"
+        f"Winner: {winner_name} (<code>{user.id}</code>)\n\n"
         f"📝 <b>Claim Data:</b>\n<code>{claim_data}</code>"
     )
 

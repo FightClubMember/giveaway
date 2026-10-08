@@ -1,38 +1,34 @@
-"""Inline and Reply keyboards for user flows with modern, colorful Telegram styling."""
+"""Inline and Reply keyboards for user flows with modern, colorful Telegram Bot API 9.4 styling."""
 
 from typing import List
-from aiogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
+from keyboards.styled_buttons import InlineKeyboardButton, KeyboardButton
 from database.models import Giveaway, GiveawayRequirement
 from config import settings
 
 
 def main_reply_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
-    """Persistent native bottom Reply Keyboard for 1-tap navigation."""
+    """Persistent native bottom Reply Keyboard for 1-tap navigation with API 9.4 styling."""
     rows = [
         [
-            KeyboardButton(text="🎁 Active Giveaways"),
-            KeyboardButton(text="🎟 My Entries"),
+            KeyboardButton(text="🎁 Active Giveaways", style="success"),
+            KeyboardButton(text="🎟 My Entries", style="primary"),
         ],
         [
-            KeyboardButton(text="👥 Refer & Earn"),
-            KeyboardButton(text="🏆 Leaderboard"),
+            KeyboardButton(text="👥 Refer & Earn", style="primary"),
+            KeyboardButton(text="🏆 Leaderboard", style="primary"),
         ],
         [
-            KeyboardButton(text="🔥 Daily Bonus"),
-            KeyboardButton(text="🤖 Ask John's AI"),
+            KeyboardButton(text="🔥 Daily Bonus", style="success"),
+            KeyboardButton(text="🤖 Ask John's AI", style="primary"),
         ],
         [
-            KeyboardButton(text="👤 My Profile"),
-            KeyboardButton(text="ℹ️ How It Works"),
+            KeyboardButton(text="👤 My Profile", style="primary"),
+            KeyboardButton(text="ℹ️ How It Works", style="primary"),
         ],
     ]
     if is_admin:
-        rows.append([KeyboardButton(text="⚙️ Admin Dashboard")])
+        rows.append([KeyboardButton(text="⚙️ Admin Dashboard", style="danger")])
 
     return ReplyKeyboardMarkup(
         keyboard=rows,
@@ -42,38 +38,28 @@ def main_reply_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
     )
 
 
-def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
-    """Vibrant, colorful inline keyboard with modern emoji hierarchy."""
+def quick_actions_inline_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
+    """Streamlined quick-action inline buttons (no duplicates with bottom keyboard)."""
     buttons = [
         [
-            InlineKeyboardButton(text="🎁 Explore Giveaways 🟢", callback_data="menu_active"),
-            InlineKeyboardButton(text="🏆 Hall of Winners 👑", callback_data="menu_winners"),
+            InlineKeyboardButton(text="🎁 Browse Active Giveaways 🟢", callback_data="menu_active", style="success"),
+            InlineKeyboardButton(text="👥 Invite Friends & Earn 🚀", callback_data="menu_referral", style="primary"),
         ],
         [
-            InlineKeyboardButton(text="🎟 My Active Entries 💎", callback_data="menu_entries"),
-            InlineKeyboardButton(text="👥 Invite & Multiply 🚀", callback_data="menu_referral"),
-        ],
-        [
-            InlineKeyboardButton(text="🔥 Daily Free Ticket ⚡", callback_data="user_daily_bonus"),
-            InlineKeyboardButton(text="🏆 Top Leaderboard 🌟", callback_data="menu_leaderboard"),
-        ],
-        [
-            InlineKeyboardButton(text="🎟 Redeem Voucher 🔮", callback_data="user_redeem_code"),
-            InlineKeyboardButton(text="🤖 Ask John's AI 🧠", callback_data="menu_ai_ask"),
-        ],
-        [
-            InlineKeyboardButton(text="👤 My Account & Wins 📊", callback_data="menu_profile"),
-            InlineKeyboardButton(text="ℹ️ Rules & Guide 📖", callback_data="menu_guide"),
-        ],
-        [
-            InlineKeyboardButton(text="📞 24/7 VIP Support 💬", url=settings.SUPPORT_URL),
+            InlineKeyboardButton(text="🤖 Ask John's AI Concierge ⚡", callback_data="menu_ai_ask", style="primary"),
+            InlineKeyboardButton(text="🎟 Redeem Voucher 🔮", callback_data="user_redeem_code", style="primary"),
         ],
     ]
     if is_admin:
         buttons.append([
-            InlineKeyboardButton(text="⚙️ Admin Control Center 👑", callback_data="admin_hub")
+            InlineKeyboardButton(text="⚙️ Open Admin Control Center 👑", callback_data="admin_hub", style="danger")
         ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
+    """Alias for quick_actions_inline_keyboard to eliminate duplicate button clutter."""
+    return quick_actions_inline_keyboard(is_admin=is_admin)
 
 
 def giveaways_pagination_keyboard(
@@ -89,20 +75,21 @@ def giveaways_pagination_keyboard(
             InlineKeyboardButton(
                 text=f"🎁 {gw.title} • [{gw.prize}]",
                 callback_data=f"{prefix}_view_{gw.id}",
+                style="success",
             )
         ])
 
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="◀️ Prev", callback_data=f"{prefix}_page_{page - 1}"))
+        nav_row.append(InlineKeyboardButton(text="◀️ Prev", callback_data=f"{prefix}_page_{page - 1}", style="primary"))
     nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{max(1, total_pages)}", callback_data="noop"))
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Next ▶️", callback_data=f"{prefix}_page_{page + 1}"))
+        nav_row.append(InlineKeyboardButton(text="Next ▶️", callback_data=f"{prefix}_page_{page + 1}", style="primary"))
 
     if nav_row:
         buttons.append(nav_row)
 
-    buttons.append([InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main")])
+    buttons.append([InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main", style="primary")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -115,17 +102,17 @@ def giveaway_detail_keyboard(
     buttons = []
     if not is_joined:
         buttons.append([
-            InlineKeyboardButton(text="🎟️ ENTER GIVEAWAY NOW 🚀", callback_data=f"gw_join_{giveaway_id}")
+            InlineKeyboardButton(text="🎟️ ENTER GIVEAWAY NOW 🚀", callback_data=f"gw_join_{giveaway_id}", style="success")
         ])
     else:
         buttons.append([
-            InlineKeyboardButton(text="👥 Get Extra Entries (+Refer)", callback_data="menu_referral"),
-            InlineKeyboardButton(text="📊 My Entry Breakdown", callback_data=f"gw_stats_{giveaway_id}"),
+            InlineKeyboardButton(text="👥 Extra Entries (+Refer)", callback_data="menu_referral", style="primary"),
+            InlineKeyboardButton(text="📊 My Entry Breakdown", callback_data=f"gw_stats_{giveaway_id}", style="primary"),
         ])
 
     buttons.append([
-        InlineKeyboardButton(text="📜 Official Rules", callback_data=f"gw_rules_{giveaway_id}"),
-        InlineKeyboardButton(text="🔙 Back to Giveaways", callback_data="menu_active"),
+        InlineKeyboardButton(text="📜 Official Rules", callback_data=f"gw_rules_{giveaway_id}", style="primary"),
+        InlineKeyboardButton(text="🔙 Back to Giveaways", callback_data="menu_active", style="primary"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -140,13 +127,13 @@ def channel_verification_keyboard(
         link = req.invite_link or (f"https://t.me/{req.chat_id.replace('@', '')}" if req.chat_id.startswith('@') else None)
         text = f"👉 Join {req.title} 📢"
         if link:
-            buttons.append([InlineKeyboardButton(text=text, url=link)])
+            buttons.append([InlineKeyboardButton(text=text, url=link, style="primary")])
 
     buttons.append([
-        InlineKeyboardButton(text="🔄 Verify Membership Now ⚡", callback_data=f"gw_join_{giveaway_id}"),
+        InlineKeyboardButton(text="🔄 Verify Membership Now ⚡", callback_data=f"gw_join_{giveaway_id}", style="success"),
     ])
     buttons.append([
-        InlineKeyboardButton(text="🔙 Back", callback_data=f"gw_view_{giveaway_id}"),
+        InlineKeyboardButton(text="🔙 Back", callback_data=f"gw_view_{giveaway_id}", style="danger"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -157,10 +144,10 @@ def referral_share_keyboard(referral_link: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="📤 Share Link with Friends 🚀", url=share_url),
+                InlineKeyboardButton(text="📤 Share Link with Friends 🚀", url=share_url, style="success"),
             ],
             [
-                InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main"),
+                InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main", style="primary"),
             ],
         ]
     )
@@ -170,6 +157,6 @@ def back_to_menu_keyboard() -> InlineKeyboardMarkup:
     """Standard back button."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main")]
+            [InlineKeyboardButton(text="🔙 Back to Main Hub", callback_data="back_to_main", style="primary")]
         ]
     )
