@@ -51,10 +51,14 @@ engine_kwargs = {
 
 if not db_url.startswith("sqlite"):
     engine_kwargs.update({
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        "pool_size": 10,
-        "max_overflow": 20,
+        "pool_pre_ping": False,
+        "pool_recycle": 600,
+        "pool_size": 20,
+        "max_overflow": 30,
+        "connect_args": {
+            "statement_cache_size": 0,
+            "command_timeout": 15,
+        },
     })
 
 engine = create_async_engine(db_url, **engine_kwargs)

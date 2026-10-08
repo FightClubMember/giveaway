@@ -163,12 +163,17 @@ async def handle_admin_dashboard(event: Message | CallbackQuery, state: FSMConte
         await event.answer(text=text, parse_mode="HTML", reply_markup=keyboard)
 
 
-# Cancel any active FSM
-@router.callback_query(F.data == "adm_cancel_fsm")
+# Cancel any active FSM or Wizard
+@router.callback_query(F.data.in_(["admin_cancel", "adm_cancel_fsm"]))
 async def handle_cancel_fsm(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer("Operation cancelled.")
     await state.clear()
-    await callback.message.edit_text("❌ Operation cancelled.", reply_markup=admin_menu_keyboard())
-    await callback.answer("Cancelled")
+    await handle_admin_dashboard(callback, state)
+
+
+@router.callback_query(F.data == "noop")
+async def handle_noop(callback: CallbackQuery) -> None:
+    await callback.answer()
 
 
 # --- PLATFORM STATISTICS ---
@@ -250,11 +255,77 @@ async def process_gw_title(message: Message, state: FSMContext) -> None:
 async def process_gw_desc(message: Message, state: FSMContext) -> None:
     await state.update_data(description=message.text.strip())
     await state.set_state(CreateGiveawayFSM.prize)
-    await message.reply(
-        "💰 <b>Step 3/8: Prize Details</b>\n\nEnter the prize description (e.g., <i>₹5,000 Cash UPI</i> or <i>100 USDT</i>):",
-        parse_mode="HTML",
-        reply_markup=admin_cancel_keyboard(),
+
+    prize_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💰 ₹500 UPI Cash", callback_data="adm_preset_prize_₹500 UPI Cash", style="success"),
+                InlineKeyboardButton(text="💰 ₹1,000 UPI Cash", callback_data="adm_preset_prize_₹1,000 UPI Cash", style="success"),
+            ],
+            [
+                InlineKeyboardButton(text="⭐ Telegram Premium (3 Mo)", callback_data="adm_preset_prize_Telegram Premium (3 Months)", style="primary"),
+                InlineKeyboardButton(text="💎 10 USDT Crypto", callback_data="adm_preset_prize_10 USDT Crypto", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="✨ AI Prize Ideas (Groq)", callback_data="adm_ai_suggest_prizes", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="❌ Cancel", callback_data="admin_cancel", style="danger"),
+            ],
+        ]
     )
+
+    await message.reply(
+        "💰 <b>Step 3/8: Prize Details</b>\n\n"
+        "Winners ko kya prize milega? Neeche se 1-click me select karo ya custom text type karke bhejo:\n"
+        "• <i>Examples: ₹5,000 UPI, PlayStation 5, 50 USDT, Boat Airdopes, Netflix Voucher</i>",
+        parse_mode="HTML",
+        reply_markup=prize_kb,
+    )
+
+
+@router.callback_query(F.data.startswith("adm_preset_prize_"), StateFilter(CreateGiveawayFSM.prize))
+async def process_preset_prize(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer()
+    prize_val = callback.data.split("adm_preset_prize_")[1]
+    await state.update_data(prize=prize_val)
+    await state.set_state(CreateGiveawayFSM.winners_count)
+    if callback.message:
+        await callback.message.edit_text(
+            f"✅ Prize Selected: <b>{prize_val}</b>\n\n"
+            "🏆 <b>Step 4/8: Number of Winners</b>\n\n"
+            "Kitne winners chune jayenge? Number type karke bhejo (e.g. <code>1</code>, <code>3</code>, <code>5</code>):",
+            parse_mode="HTML",
+            reply_markup=admin_cancel_keyboard(),
+        )
+
+
+@router.callback_query(F.data == "adm_ai_suggest_prizes", StateFilter(CreateGiveawayFSM.prize))
+async def process_ai_suggest_prizes(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer("✨ Groq AI is generating prize concepts...")
+    ideas = await GroqAIService.generate_giveaway_ideas(niche="Telegram Community Growth")
+    prize_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💰 ₹500 UPI Cash", callback_data="adm_preset_prize_₹500 UPI Cash", style="success"),
+                InlineKeyboardButton(text="⭐ Telegram Premium (3 Mo)", callback_data="adm_preset_prize_Telegram Premium (3 Months)", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="💎 25 USDT Crypto", callback_data="adm_preset_prize_25 USDT Crypto", style="primary"),
+                InlineKeyboardButton(text="🎧 Gaming Headphones", callback_data="adm_preset_prize_Gaming Headphones", style="primary"),
+            ],
+            [
+                InlineKeyboardButton(text="❌ Cancel", callback_data="admin_cancel", style="danger"),
+            ],
+        ]
+    )
+    if callback.message:
+        await callback.message.edit_text(
+            f"{ideas}\n\n"
+            "Neeche se prize select karo ya apna custom prize text type karke bhejo:",
+            parse_mode="HTML",
+            reply_markup=prize_kb,
+        )
 
 
 @router.message(CreateGiveawayFSM.prize)
@@ -525,10 +596,47 @@ async def handle_manual_draw(callback: CallbackQuery, bot: Bot) -> None:
 
 
 # --- POSTER STUDIO & AI GENERATORS ---
-@router.callback_query(F.data.startswith("adm_poster_"))
+@router.callback_query(F.data == "adm_poster_menu")
+async def handle_poster_menu(callback: CallbackQuery) -> None:
+    """List active giveaways to generate an HD promotional graphic card."""
+    await callback.answer()
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        giveaways = await gw_repo.get_active_giveaways(limit=10)
+
+    if not giveaways:
+        text = (
+            "🎨 <b>JOHN'S POSTER STUDIO</b>\n\n"
+            "Bhai abhi koi active giveaway nahi mila! Pehle ek giveaway create karo, fir uska HD poster generate kar lena."
+        )
+        if callback.message:
+            await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=admin_cancel_keyboard())
+        return
+
+    buttons = []
+    for g in giveaways:
+        buttons.append([
+            InlineKeyboardButton(text=f"🖼️ Poster: {g.title} ({g.prize})", callback_data=f"adm_poster_{g.id}", style="primary")
+        ])
+    buttons.append([InlineKeyboardButton(text="🔙 Back to Admin Hub", callback_data="admin_hub", style="primary")])
+    if callback.message:
+        await callback.message.edit_text(
+            "🎨 <b>JOHN'S POSTER STUDIO</b>\n\n"
+            "Jis giveaway ka HD poster banana hai, neeche select karo:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        )
+
+
+@router.callback_query(F.data.startswith("adm_poster_") & (F.data != "adm_poster_menu"))
 async def handle_generate_poster(callback: CallbackQuery) -> None:
     """Generate high-resolution promotional poster graphic."""
-    giveaway_id = int(callback.data.split("_")[2])
+    raw_id = callback.data.split("_")[2]
+    if not raw_id.isdigit():
+        await callback.answer()
+        return
+
+    giveaway_id = int(raw_id)
     async with get_session() as session:
         gw_repo = GiveawayRepository(session)
         gw = await gw_repo.get_by_id(giveaway_id)
@@ -549,7 +657,7 @@ async def handle_generate_poster(callback: CallbackQuery) -> None:
     caption = (
         f"🎨 <b>JOHN'S POSTER STUDIO</b>\n\n"
         f"<b>{gw.title}</b> • <b>{gw.prize}</b>\n"
-        "High-definition poster generated on-the-fly for your announcements!"
+        "High-definition graphic poster ready for your Telegram channel broadcast!"
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -560,10 +668,47 @@ async def handle_generate_poster(callback: CallbackQuery) -> None:
         await callback.message.answer_photo(photo=photo_file, caption=caption, parse_mode="HTML", reply_markup=keyboard)
 
 
-@router.callback_query(F.data.startswith("adm_aicopy_"))
+@router.callback_query(F.data.in_(["adm_ai_copy", "adm_aicopy_menu"]))
+async def handle_ai_copy_menu(callback: CallbackQuery) -> None:
+    """List active giveaways to generate viral Groq AI copy."""
+    await callback.answer()
+    async with get_session() as session:
+        gw_repo = GiveawayRepository(session)
+        giveaways = await gw_repo.get_active_giveaways(limit=10)
+
+    if not giveaways:
+        text = (
+            "✨ <b>GROQ AI COPYWRITER STUDIO</b>\n\n"
+            "Bhai abhi koi active giveaway nahi mila! Pehle giveaway create karo, fir Groq AI se uska viral announcement likhwana."
+        )
+        if callback.message:
+            await callback.message.edit_text(text=text, parse_mode="HTML", reply_markup=admin_cancel_keyboard())
+        return
+
+    buttons = []
+    for g in giveaways:
+        buttons.append([
+            InlineKeyboardButton(text=f"✨ AI Copy: {g.title}", callback_data=f"adm_aicopy_{g.id}", style="primary")
+        ])
+    buttons.append([InlineKeyboardButton(text="🔙 Back to Admin Hub", callback_data="admin_hub", style="primary")])
+    if callback.message:
+        await callback.message.edit_text(
+            "✨ <b>GROQ AI PROMOTIONAL COPYWRITER</b>\n\n"
+            "Kis giveaway ke liye viral Telegram copy likhwani hai? Select karo:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        )
+
+
+@router.callback_query(F.data.startswith("adm_aicopy_") & ~F.data.in_(["adm_ai_copy", "adm_aicopy_menu"]))
 async def handle_ai_copy_giveaway(callback: CallbackQuery) -> None:
     """Generate viral marketing copy via Groq AI."""
-    giveaway_id = int(callback.data.split("_")[2])
+    raw_id = callback.data.split("_")[2]
+    if not raw_id.isdigit():
+        await callback.answer()
+        return
+
+    giveaway_id = int(raw_id)
     async with get_session() as session:
         gw_repo = GiveawayRepository(session)
         gw = await gw_repo.get_by_id(giveaway_id)
