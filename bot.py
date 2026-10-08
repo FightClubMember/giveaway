@@ -33,32 +33,7 @@ async def main() -> None:
     """Initialize resources, attach middlewares, and launch the bot."""
     logger.info("Initializing Telegram Giveaway Platform...")
 
-    # 1. Initialize Database
-    try:
-        await init_db()
-    except Exception as e:
-        logger.exception("Failed to initialize database: %s", e)
-        sys.exit(1)
-
-    # 2. Initialize Bot and Dispatcher
-    bot = Bot(
-        token=settings.BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
-    storage = MemoryStorage()
-    dp = Dispatcher(storage=storage)
-
-    # 3. Register Middlewares
-    dp.update.outer_middleware(ThrottlingMiddleware(rate_limit=0.5))
-    dp.update.outer_middleware(BanMiddleware())
-
-    # 4. Include Master Router
-    dp.include_router(setup_routers())
-
-    # 5. Start Background Scheduler
-    scheduler_task = asyncio.create_task(run_giveaway_scheduler(bot=bot, interval_seconds=30))
-
-    # 6. Render Web Service compatibility: Start health check web server if PORT is set
+    # 1. Render Web Service compatibility: Start health check web server IMMEDIATELY if PORT is set
     port_env = os.getenv("PORT")
     web_runner = None
     if port_env:
@@ -81,9 +56,36 @@ async def main() -> None:
             await web_runner.setup()
             site = web.TCPSite(web_runner, "0.0.0.0", port)
             await site.start()
-            logger.info("Health check HTTP server started on 0.0.0.0:%d (Render compatibility)", port)
+            logger.info("Health check HTTP server active on 0.0.0.0:%d (Render compatibility)", port)
         except Exception as e:
             logger.warning("Could not start optional HTTP server on port %s: %s", port_env, e)
+
+    # 2. Initialize Database with automatic retry logic
+    try:
+        await init_db()
+    except Exception as e:
+        logger.exception("Failed to initialize database after retries: %s", e)
+        if web_runner:
+            await web_runner.cleanup()
+        sys.exit(1)
+
+    # 3. Initialize Bot and Dispatcher
+    bot = Bot(
+        token=settings.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+
+    # 4. Register Middlewares
+    dp.update.outer_middleware(ThrottlingMiddleware(rate_limit=0.5))
+    dp.update.outer_middleware(BanMiddleware())
+
+    # 5. Include Master Router
+    dp.include_router(setup_routers())
+
+    # 6. Start Background Scheduler
+    scheduler_task = asyncio.create_task(run_giveaway_scheduler(bot=bot, interval_seconds=30))
 
     logger.info("Bot configured. Admin IDs: %s", settings.admin_id_list)
     logger.info("Starting long polling...")

@@ -1,27 +1,16 @@
 services:
-  - type: web
-    name: giveaway-bot
-    runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python bot.py"
-    plan: free # Runs on Render free tier with automatic /health check
+  - type: worker
+    name: telegram-giveaway-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
     autoDeploy: true
     envVars:
-      - key: DATABASE_URL
-        sync: false # Set to your Supabase PostgreSQL connection string
       - key: BOT_TOKEN
-        sync: false # Your Bot Token from @BotFather
-      - key: BOT_USERNAME
-        sync: false # Your Bot Username without @
+        sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: ADMIN_IDS
-        sync: false # Your Telegram User ID
-      - key: LOG_LEVEL
-        value: INFO
-      - key: CLAIM_WINDOW_HOURS
-        value: 24
-      - key: DAILY_BONUS_ENTRIES
-        value: 1
-      - key: DEFAULT_REFERRAL_BONUS
-        value: 1
+        sync: false
       - key: GROQ_API_KEY
-        sync: false # Optional Groq Cloud API Key
+        sync: false
