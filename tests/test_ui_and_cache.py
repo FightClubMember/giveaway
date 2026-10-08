@@ -20,33 +20,33 @@ def test_main_reply_keyboard():
     assert user_kb.is_persistent is True
     # Verify key buttons exist
     button_texts = [btn.text for row in user_kb.keyboard for btn in row]
-    assert "🎁 Active Giveaways" in button_texts
-    assert "🎟 My Entries" in button_texts
-    assert "👥 Refer & Earn" in button_texts
-    assert "🏆 Leaderboard" in button_texts
-    assert "🔥 Daily Bonus" in button_texts
-    assert "🤖 Ask John's AI" in button_texts
-    assert "👤 My Profile" in button_texts
-    assert "ℹ️ How It Works" in button_texts
-    assert "⚙️ Admin Dashboard" not in button_texts
+    assert "🎁 Live Giveaways" in button_texts
+    assert "🎟 Meri Tickets" in button_texts
+    assert "👥 Dost Bulao (Refer)" in button_texts
+    assert "🏆 Topper List" in button_texts
+    assert "🔥 Daily Free Ticket" in button_texts
+    assert "🤖 John Bhai Ka AI" in button_texts
+    assert "👤 Meri Profile" in button_texts
+    assert "ℹ️ Kaise Kaam Karta Hai?" in button_texts
+    assert "⚙️ Admin Adda (Boss)" not in button_texts
 
     admin_kb = main_reply_keyboard(is_admin=True)
     admin_texts = [btn.text for row in admin_kb.keyboard for btn in row]
-    assert "⚙️ Admin Dashboard" in admin_texts
+    assert "⚙️ Admin Adda (Boss)" in admin_texts
 
 
 def test_quick_actions_inline_keyboard():
     """Verify quick actions keyboard has streamlined non-duplicate buttons."""
     user_kb = quick_actions_inline_keyboard(is_admin=False)
     button_texts = [btn.text for row in user_kb.inline_keyboard for btn in row]
-    assert any("Browse Active Giveaways" in t for t in button_texts)
-    assert any("Invite Friends" in t for t in button_texts)
-    assert any("Ask John's AI" in t for t in button_texts)
+    assert any("Live Giveaways Dekho" in t for t in button_texts)
+    assert any("Dost Bulao" in t for t in button_texts)
+    assert any("John Bhai" in t for t in button_texts)
     assert not any("Admin" in t for t in button_texts)
 
     admin_kb = quick_actions_inline_keyboard(is_admin=True)
     admin_texts = [btn.text for row in admin_kb.inline_keyboard for btn in row]
-    assert any("Admin Control Center" in t for t in admin_texts)
+    assert any("Admin Control Panel" in t for t in admin_texts)
 
 
 def test_telegram_api_9_4_styled_buttons_aiogram():

@@ -1,5 +1,5 @@
 """Main application entry point for the Telegram Giveaway Bot.
-Handles lifecycle events, background tasks, middlewares, and startup polling.
+Handles lifecycle events, background tasks, middlewares, startup polling, and anti-crash keepalive watchdog.
 """
 
 import asyncio
@@ -29,9 +29,30 @@ logging.basicConfig(
 logger = logging.getLogger("giveaway_bot")
 
 
+async def start_render_keepalive_watchdog(port: int) -> None:
+    """Anti-sleep background task for Render Free tier.
+    Pings the internal /health endpoint every 8 minutes to prevent Render from idling the container.
+    """
+    import aiohttp
+
+    await asyncio.sleep(20)  # Wait for web server to be up
+    logger.info("Render anti-sleep keepalive watchdog started (pings every 8m)")
+
+    while True:
+        try:
+            external_url = os.getenv("RENDER_EXTERNAL_URL")
+            target = f"{external_url}/health" if external_url else f"http://127.0.0.1:{port}/health"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(target, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    logger.debug("Keepalive ping to %s -> HTTP %s", target, resp.status)
+        except Exception as e:
+            logger.debug("Keepalive ping error (ignorable): %s", e)
+        await asyncio.sleep(480)  # 8 minutes
+
+
 async def main() -> None:
-    """Initialize resources, attach middlewares, and launch the bot."""
-    logger.info("Initializing Telegram Giveaway Platform...")
+    """Initialize resources, attach middlewares, and launch the bot with self-healing keepalive."""
+    logger.info("Initializing Telegram Giveaway Platform (John's Giveaway Bot)...")
 
     # 1. Render Web Service compatibility: Start health check web server IMMEDIATELY if PORT is set
     port_env = os.getenv("PORT")
@@ -44,7 +65,7 @@ async def main() -> None:
             async def health_handler(request: web.Request) -> web.Response:
                 return web.json_response({
                     "status": "healthy",
-                    "service": "telegram_giveaway_bot",
+                    "service": "johns_giveaway_bot",
                     "admin_ids": settings.admin_id_list,
                 })
 
@@ -57,14 +78,17 @@ async def main() -> None:
             site = web.TCPSite(web_runner, "0.0.0.0", port)
             await site.start()
             logger.info("Health check HTTP server active on 0.0.0.0:%d (Render compatibility)", port)
+
+            # Start anti-sleep watchdog
+            asyncio.create_task(start_render_keepalive_watchdog(port))
         except Exception as e:
-            logger.warning("Could not start optional HTTP server on port %s: %s", port_env, e)
+            logger.warning("Could not start HTTP health server on port %s: %s", port_env, e)
 
     # 2. Initialize Database with automatic retry logic
     try:
         await init_db()
     except Exception as e:
-        logger.exception("Failed to initialize database after retries: %s", e)
+        logger.exception("Failed to initialize database: %s", e)
         if web_runner:
             await web_runner.cleanup()
         sys.exit(1)
@@ -88,14 +112,33 @@ async def main() -> None:
     scheduler_task = asyncio.create_task(run_giveaway_scheduler(bot=bot, interval_seconds=30))
 
     logger.info("Bot configured. Admin IDs: %s", settings.admin_id_list)
-    logger.info("Starting long polling...")
 
+    # 7. Resilient Long Polling Loop: NEVER DIE WATCHDOG
     try:
-        # Drop pending updates to avoid backlog on cold starts
         await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
-        logger.error("Polling terminated with error: %s", e)
+        logger.warning("Webhook cleanup on boot encountered: %s", e)
+
+    retry_delay = 2
+    try:
+        while True:
+            try:
+                logger.info("Starting resilient Telegram long polling...")
+                await dp.start_polling(
+                    bot,
+                    allowed_updates=dp.resolve_used_update_types(),
+                    handle_signals=False,
+                )
+            except asyncio.CancelledError:
+                logger.info("Polling loop cancelled, breaking...")
+                break
+            except Exception as e:
+                logger.error("Polling error caught: %s. Auto-reconnecting in %d seconds...", e, retry_delay)
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 30)  # Exponential backoff up to 30s max
+            else:
+                logger.warning("Polling exited without exception. Auto-resuming in 2 seconds...")
+                await asyncio.sleep(2)
     finally:
         logger.info("Shutting down bot gracefully...")
         scheduler_task.cancel()

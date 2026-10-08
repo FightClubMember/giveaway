@@ -28,15 +28,16 @@ class GroqAIService:
         """Answer user questions about John's Giveaway Bot, prizes, entry rules, and referrals."""
         client = cls.get_client()
         system_prompt = (
-            "You are John's AI, the ultra-smart, friendly, and energetic concierge for John's Giveaway Bot. "
-            "You help Telegram users understand how giveaways work, how to earn more entries, referral rules, "
-            "how winners are drawn with cryptographic fairness, and how to claim prizes. "
-            "Keep answers concise, helpful, and formatted with clean emojis and Markdown/HTML tags. "
-            "Tone: enthusiastic, trustworthy, crisp."
+            "You are John Bhai (John's AI Concierge) for John's Giveaway Bot. "
+            "You speak in hardcore friendly, super casual, energetic Hinglish "
+            "(mix of Hindi and English, like: 'Arre bhai!', 'Bindaas sun bro...', 'Ekdum mast scene hai!'). "
+            "Help Telegram users understand how giveaways work, how to get extra lottery tickets via referrals, "
+            "daily bonus tickets, fair computer lucky draws, and prize claims via UPI/Crypto. "
+            "Always be super warm, brotherly, motivating, and keep answers short, crisp with clean emojis and HTML tags."
         )
-        user_prompt = f"User '{user_name}' asks: {query}"
+        user_prompt = f"Bhai '{user_name}' pooch raha hai: {query}"
         if context:
-            user_prompt += f"\n\nContext regarding active giveaways:\n{context}"
+            user_prompt += f"\n\nActive giveaways ki jaankari:\n{context}"
 
         if client:
             try:
@@ -49,46 +50,46 @@ class GroqAIService:
                     temperature=0.7,
                     max_tokens=400,
                 )
-                return response.choices[0].message.content or "I couldn't generate an answer right now."
+                return response.choices[0].message.content or "Bhai abhi AI ka reply generate nahi ho paya, 1 min baad poochna!"
             except Exception as e:
                 logger.warning("Groq AI API error: %s", e)
 
-        # Smart fallback if Groq API key is not yet configured
+        # Smart fallback if Groq API key is not yet configured (Casual, hardcore friendly Hinglish)
         query_lower = query.lower()
-        if "referral" in query_lower or "invite" in query_lower:
+        if "referral" in query_lower or "invite" in query_lower or "dost" in query_lower:
             return (
-                "👥 <b>How Referrals Work:</b>\n"
-                "Tap <b>👥 Refer & Earn</b> in the main hub to get your unique link. "
-                "Share it with friends! Once your friend joins the bot and verifies requirements for an active giveaway, "
-                "you automatically receive bonus entries to boost your winning odds! 🚀"
+                "👥 <b>Bhai Dost Bulao (Referral System) Samajh:</b>\n\n"
+                "Neeche <b>👥 Dost Bulao (Refer)</b> pe tap karo, apna unique link dosto ko share karo WhatsApp ya Telegram pe. "
+                "Jaise hi tumhara dost join karke giveaway enter karega, tumhe turant <b>+1 Extra Ticket</b> mil jayegi! "
+                "Jitne zyada dost bulaoge, jeetne ka chance utna 10x badhega bhai! 🚀"
             )
-        elif "winner" in query_lower or "draw" in query_lower or "fair" in query_lower:
+        elif "winner" in query_lower or "draw" in query_lower or "fair" in query_lower or "jeet" in query_lower:
             return (
-                "🏆 <b>Fair Winner Selection:</b>\n"
-                "Winners are chosen using a cryptographically secure random algorithm. "
-                "Each entry you hold acts as a raffle ticket. The more entries you accumulate via referrals and daily check-ins, "
-                "the higher your winning odds! Plus, every draw generates a verifiable SHA-256 audit hash."
+                "🏆 <b>Lucky Draw Kaise Hota Hai? 100% Fair Scene:</b>\n\n"
+                "Bhai yahan koi cheating nahi hoti! Saare winners computer algorithm (SHA-256 random cryptographic code) se chune jaate hain. "
+                "Har ek entry tumhari lottery ticket jaisi hai — jitni zyada tickets tumhare paas hongi, computer draw me tumhara naam nikalne ka chance utna tagda hoga!"
             )
-        elif "claim" in query_lower or "prize" in query_lower:
+        elif "claim" in query_lower or "prize" in query_lower or "paisa" in query_lower:
             return (
-                "🎁 <b>Claiming Your Prize:</b>\n"
-                "When you win, John's Giveaway Bot automatically sends you a private alert with a <b>CLAIM PRIZE</b> button. "
-                "You have 24 hours to securely submit your UPI / Crypto / Shipping details. Admins review and send your prize promptly!"
+                "🎁 <b>Prize Kaise Milega?</b>\n\n"
+                "Jab bhi tum jeetoge, bot tumhe turant private message bhejega ek <b>CLAIM PRIZE</b> button ke sath! "
+                "Wahan apni UPI ID, Crypto address ya details daal dena, aur John Bhai ke team se prize direct tumhare paas bhej diya jayega! Ekdum fast."
             )
-        elif "daily" in query_lower or "streak" in query_lower:
+        elif "daily" in query_lower or "streak" in query_lower or "roz" in query_lower:
             return (
-                "🔥 <b>Daily Bonus:</b>\n"
-                "Tap <b>🔥 Daily Bonus</b> every 24 hours to claim a free ticket in active giveaways. Consistency pays off!"
+                "🔥 <b>Daily Free Ticket Ka Scene:</b>\n\n"
+                "Roz bas ek baar bot me aao aur <b>🔥 Daily Free Ticket</b> pe tap karo! "
+                "Bina kisi channel join kiye ya kisi mehnat ke +1 ticket free me mil jayegi. Consistency me hi jeet hai bhai!"
             )
         else:
             return (
-                "🤖 <b>John's AI Assistant:</b>\n"
-                "Welcome to <b>John's Giveaway Bot</b>! Here you can:\n"
-                "• Join active giveaways with 1 click\n"
-                "• Invite friends to multiply your tickets\n"
-                "• Claim daily bonuses every 24 hours\n"
-                "• Win real cash, crypto, and gadget prizes!\n\n"
-                "<i>Tap the buttons in the main menu to get started!</i>"
+                "🤖 <b>Arre Bhai! John Bhai Ka AI Concierge Hazir Hai:</b>\n\n"
+                "Ye hai tumhara <b>John's Giveaway Hub</b>! Yahan tum:\n"
+                "• 1 click me giveaways me enter kar sakte ho\n"
+                "• Dosto ko invite karke extra tickets loot sakte ho\n"
+                "• Roz free daily ticket claim kar sakte ho\n"
+                "• Real Cash, UPI, aur Telegram Premium jeet sakte ho!\n\n"
+                "<i>Bindaas neeche buttons dabao aur shuru ho jao bhai!</i>"
             )
 
     @classmethod
